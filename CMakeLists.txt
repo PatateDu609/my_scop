@@ -21,7 +21,7 @@ add_executable(scop
 		include/parser/utils.h src/parser/utils.cpp
 		include/application.h src/application.cpp
 		include/graphics/vulkan.h src/graphics/vulkan.cpp
-		include/graphics/utils.h src/graphics/utils.cpp include/graphics/debug.h src/graphics/debug.cpp include/graphics/renderer.h)
+		include/graphics/utils.h src/graphics/utils.cpp include/graphics/debug.h src/graphics/debug.cpp include/graphics/renderer.h src/graphics/renderer.cpp)
 
 # Setup GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)

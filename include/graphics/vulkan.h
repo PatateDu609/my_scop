@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan.h>
 #include <string>
+#include <vector>
+#include "renderer.h"
 
 namespace graphics {
 	constexpr const char *ENGINE        = "gb_engine";
@@ -13,12 +15,22 @@ namespace graphics {
 		VulkanInstance();
 		~VulkanInstance();
 
+		void set_renderer(Renderer *renderer);
+		VkSurfaceKHR get_surface() const;
+
+		[[nodiscard]] std::vector<VkPhysicalDevice> enumerate_physical_devices() const;
+
 	private:
 		void create_instance();
 		void create_debug_messenger();
 
+		operator VkInstance(); // NOLINT(google-explicit-constructor)
+
 		VkInstance               _instance;
 		VkDebugUtilsMessengerEXT _debugMessenger;
+		Renderer                 *_renderer;
+
+		friend class Renderer;
 	};
 }
 

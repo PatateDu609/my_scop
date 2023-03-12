@@ -1,6 +1,8 @@
 #include <iostream>
+#include <map>
 #include "application.h"
 #include "parser/parser.h"
+#include "graphics/utils.h"
 
 
 Application::Application(int ac, char **av) : _window(nullptr), _instance() {
@@ -30,6 +32,8 @@ Application::~Application() {
 void Application::init() {
 	init_window();
 	_instance = new graphics::VulkanInstance();
+	_instance->set_renderer(new graphics::Renderer(_instance, _window));
+	select_physical_device();
 }
 
 
@@ -51,4 +55,59 @@ int Application::run() {
 	}
 
 	return 0;
+}
+
+
+void Application::select_physical_device() {
+	auto                                                       physicalDevices = _instance->enumerate_physical_devices();
+	std::multimap<uint32_t, VkPhysicalDevice, std::greater<> > ranking;
+
+	for (const auto &physicalDevice: physicalDevices) {
+		uint32_t score = 0;
+		if ((score = check_physical_device_suitability(physicalDevice)) != 0) {
+			ranking.emplace(score, physicalDevice);
+			break;
+		}
+	}
+
+	auto best = ranking.begin();
+	if (best == ranking.end() || best->first == 0)
+		throw std::runtime_error("couldn't find suitable device for Scop");
+
+	_physicalDevice = best->second;
+
+	std::cerr << "Successfully selected physical device" << std::endl;
+}
+
+
+uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physicalDevice) const {
+	VkPhysicalDeviceProperties deviceProperties;
+	VkPhysicalDeviceFeatures   deviceFeatures;
+	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+	if (!check_mandatory_features(physicalDevice, deviceProperties, deviceFeatures))
+		return 0;
+
+	uint32_t score = 0;
+
+	if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		score += 1000;
+
+	score += deviceProperties.limits.maxImageDimension2D;
+	score += static_cast<uint32_t>(deviceProperties.limits.maxSamplerAnisotropy);
+
+	std::cerr << "Device `" << deviceProperties.deviceName << "` has score of " << score << std::endl;
+	return score;
+}
+
+
+bool Application::check_mandatory_features(VkPhysicalDevice physicalDevice,
+                                           VkPhysicalDeviceProperties deviceProperties,
+                                           VkPhysicalDeviceFeatures deviceFeatures) const {
+	if (!deviceFeatures.geometryShader || !deviceFeatures.sampleRateShading)
+		return false;
+
+	bool extensionSupported = graphics::check_device_extension_support(physicalDevice);
+	return extensionSupported;
 }

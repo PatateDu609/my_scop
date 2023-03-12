@@ -1,12 +1,16 @@
 #include <glfw/glfw3.h>
 #include <vulkan/vulkan.h>
+#include <set>
 #include "graphics/utils.h"
 #include "application.h"
 
-extern const std::vector<const char *> graphics::VALIDATION_LAYERS = {
+const std::vector<const char *> graphics::VALIDATION_LAYERS = {
 		"VK_LAYER_KHRONOS_validation"
 };
 
+const std::vector<const char *> graphics::DEVICE_EXTENSIONS = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
 
 std::vector<const char *> graphics::get_required_extensions() {
 	uint32_t   glfwExtensionCount = 0;
@@ -41,4 +45,19 @@ bool graphics::check_validation_layer_support() {
 			return false;
 	}
 	return true;
+}
+
+
+bool graphics::check_device_extension_support(VkPhysicalDevice physicalDevice) {
+	uint32_t extensionCount;
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+
+	std::set<std::string> requiredExtensions(DEVICE_EXTENSIONS.begin(), DEVICE_EXTENSIONS.end());
+	for (const auto &extension: availableExtensions)
+		requiredExtensions.erase(extension.extensionName);
+
+	return requiredExtensions.empty();
 }

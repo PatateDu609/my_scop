@@ -31,9 +31,17 @@ private:
 
 	void init_window();
 
+	void select_physical_device();
+	uint32_t check_physical_device_suitability(VkPhysicalDevice physicalDevice) const;
+	bool check_mandatory_features(VkPhysicalDevice physicalDevice,
+	                              VkPhysicalDeviceProperties deviceProperties,
+	                              VkPhysicalDeviceFeatures deviceFeatures) const;
 
 	GLFWwindow               *_window;
 	graphics::VulkanInstance *_instance;
+	VkPhysicalDevice         _physicalDevice;
 };
+
+extern Application *app;
 
 #endif //SCOP_APPLICATION_H
