@@ -1,7 +1,10 @@
 #include "application.h"
 
-int main(int ac, char **av) {
-	Application app(ac, av);
+Application *app;
 
-	return app.run();
+
+int main(int ac, char **av) {
+	app = new Application(ac, av);
+
+	return app->run();
 }
