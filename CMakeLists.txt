@@ -12,16 +12,26 @@ else ()
 	add_definitions(-DDEBUG=false)
 endif ()
 
-add_executable(scop
-		src/main.cpp
+set(SRC_PARSER
 		include/parser/parser.h src/parser/parser.cpp
 		include/parser/line_objects.h
 		src/parser/line_parser.cpp
 		src/parser/exceptions.cpp
-		include/parser/utils.h src/parser/utils.cpp
-		include/application.h src/application.cpp
+		include/parser/utils.h src/parser/utils.cpp)
+
+set(SRC_GRAPHICS
 		include/graphics/vulkan.h src/graphics/vulkan.cpp
-		include/graphics/utils.h src/graphics/utils.cpp include/graphics/debug.h src/graphics/debug.cpp include/graphics/renderer.h src/graphics/renderer.cpp)
+		include/graphics/utils.h src/graphics/utils.cpp
+		include/graphics/debug.h src/graphics/debug.cpp
+		include/graphics/renderer.h src/graphics/renderer.cpp
+		include/graphics/queue_families.h src/graphics/queue_families.cpp
+		include/graphics/swap_chain.h src/graphics/swap_chain.cpp)
+
+set(SRC_MAIN
+		src/main.cpp
+		include/application.h src/application.cpp)
+
+add_executable(scop ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS})
 
 # Setup GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)

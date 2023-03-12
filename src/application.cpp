@@ -3,6 +3,8 @@
 #include "application.h"
 #include "parser/parser.h"
 #include "graphics/utils.h"
+#include "graphics/queue_families.h"
+#include "graphics/swap_chain.h"
 
 
 Application::Application(int ac, char **av) : _window(nullptr), _instance() {
@@ -63,8 +65,8 @@ void Application::select_physical_device() {
 	std::multimap<uint32_t, VkPhysicalDevice, std::greater<> > ranking;
 
 	for (const auto &physicalDevice: physicalDevices) {
-		uint32_t score = 0;
-		if ((score = check_physical_device_suitability(physicalDevice)) != 0) {
+		uint32_t score = check_physical_device_suitability(physicalDevice);
+		if (score != 0) {
 			ranking.emplace(score, physicalDevice);
 			break;
 		}
@@ -103,11 +105,16 @@ uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physica
 
 
 bool Application::check_mandatory_features(VkPhysicalDevice physicalDevice,
-                                           VkPhysicalDeviceProperties deviceProperties,
+                                           VkPhysicalDeviceProperties,
                                            VkPhysicalDeviceFeatures deviceFeatures) const {
-	if (!deviceFeatures.geometryShader || !deviceFeatures.sampleRateShading)
+	if (!deviceFeatures.geometryShader || !deviceFeatures.sampleRateShading || !deviceFeatures.samplerAnisotropy)
 		return false;
 
+	auto surface = _instance->get_surface();
+
 	bool extensionSupported = graphics::check_device_extension_support(physicalDevice);
-	return extensionSupported;
+	auto queueFamilies      = graphics::find_queue_families(physicalDevice, surface);
+	auto swapChainSupport   = graphics::query_swap_chain_support(physicalDevice, surface);
+
+	return queueFamilies && extensionSupported && swapChainSupport;
 }
