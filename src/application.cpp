@@ -7,7 +7,7 @@
 #include "graphics/swap_chain.h"
 
 
-Application::Application(int ac, char **av) : _window(nullptr), _instance() {
+Application::Application(int ac, char **av) : _window(nullptr), _instance(), _physicalDevice(VK_NULL_HANDLE) {
 	if (ac != 2) {
 		std::cerr << "usage: ./scop <scene file>" << std::endl;
 		std::exit(1);
@@ -36,6 +36,7 @@ void Application::init() {
 	_instance = new graphics::VulkanInstance();
 	_instance->set_renderer(new graphics::Renderer(_instance, _window));
 	select_physical_device();
+	_instance->create_device(_physicalDevice);
 }
 
 
@@ -77,7 +78,6 @@ void Application::select_physical_device() {
 		throw std::runtime_error("couldn't find suitable device for Scop");
 
 	_physicalDevice = best->second;
-
 	std::cerr << "Successfully selected physical device" << std::endl;
 }
 

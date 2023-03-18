@@ -4,18 +4,20 @@
 #include "application.h"
 #include "graphics/utils.h"
 #include "graphics/debug.h"
+#include "graphics/queue_families.h"
 
 
 using graphics::VulkanInstance;
 
 
-VulkanInstance::VulkanInstance() : _instance(nullptr), _debugMessenger(nullptr), _renderer(nullptr) {
+VulkanInstance::VulkanInstance() : _instance(), _debugMessenger(), _renderer(), _device() {
 	create_instance();
 	create_debug_messenger();
 }
 
 
 VulkanInstance::~VulkanInstance() {
+	vkDestroyDevice(_device, nullptr);
 
 	if (ENABLE_VALIDATION_LAYERS) //NOLINT: Simplify
 		debug::destroy_debug_utils_messenger_ext(_instance, _debugMessenger, nullptr);
@@ -99,4 +101,48 @@ std::vector<VkPhysicalDevice> VulkanInstance::enumerate_physical_devices() const
 	vkEnumeratePhysicalDevices(_instance, &deviceCount, physicalDevice.data());
 
 	return physicalDevice;
+}
+
+
+void VulkanInstance::create_device(VkPhysicalDevice device) {
+	auto indices = graphics::find_queue_families(device, _renderer->get_surface());
+
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	auto                                 uniqueQueueFamilies = static_cast<std::set<uint32_t>>(indices);
+	float                                queuePriority       = 1.0f;
+
+	for (uint32_t queueFamily: uniqueQueueFamilies) {
+		decltype(queueCreateInfos)::value_type queueCreateInfo{};
+		queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.queueCount       = 1;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
+
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.sampleRateShading = VK_TRUE;
+
+	VkDeviceCreateInfo createInfo{};
+	createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.pQueueCreateInfos       = queueCreateInfos.data();
+	createInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pEnabledFeatures        = &deviceFeatures;
+	createInfo.enabledExtensionCount   = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
+	createInfo.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
+	createInfo.enabledLayerCount       = 0;
+
+	if (ENABLE_VALIDATION_LAYERS) { //NOLINT: Simplify
+		createInfo.enabledLayerCount   = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+	}
+
+	if (vkCreateDevice(device, &createInfo, nullptr, &_device) != VK_SUCCESS)
+		throw std::runtime_error("failed to create vulkan logical device");
+
+	_renderer->acquire_queues(indices);
+
+	std::cerr << "Created successfully a logical device and acquired graphics and present queues" << std::endl;
 }

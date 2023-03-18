@@ -54,10 +54,10 @@ static std::string stringify_message_type(VkDebugUtilsMessageTypeFlagsEXT messag
 
 VkBool32 graphics::debug::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                          VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *userData) {
-	if (messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-		return VK_FALSE;
-	}
+                                         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *) {
+//	if (messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+//		return VK_FALSE;
+//	}
 
 	std::string severity = stringify_message_severity(messageSeverity);
 	std::string subject  = stringify_message_type(messageType);
