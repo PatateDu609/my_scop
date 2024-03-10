@@ -1,7 +1,7 @@
 #ifndef SCOP_RENDERER_H
 #define SCOP_RENDERER_H
 
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 #include "queue_families.h"
 

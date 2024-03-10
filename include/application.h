@@ -2,7 +2,7 @@
 #define SCOP_APPLICATION_H
 
 #include <vulkan/vulkan.h>
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 #include "graphics/vulkan.h"
 
 #ifndef DEBUG

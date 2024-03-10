@@ -24,13 +24,7 @@ if (NOT glfw_POPULATED)
     add_subdirectory(${glfw_SOURCE_DIR} ${glfw_BINARY_DIR})
 endif ()
 
-#FetchContent_Declare(
-#        SPIRV-Tools
-#         GIT_REPOSITORY  https://github.com/KhronosGroup/SPIRV-Tools.git
-#         GIT_TAG         f0cc85efdbbe3a46eae90e0f915dc1509836d0fc # tag/vulkan-sdk-1.3.275.0
-#)
-#FetchContent_MakeAvailable(SPIRV-Tools)
-
+# Setup shaderc
 FetchContent_Declare(
         shaderc
         GIT_REPOSITORY https://github.com/google/shaderc
@@ -56,10 +50,10 @@ endif ()
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     message(STATUS "Enabling Debug mode")
-    add_definitions(-DDEBUG=true)
+    set(SCOP_DEBUG ON)
 else ()
     message(STATUS "Disabling Debug mode")
-    add_definitions(-DDEBUG=false)
+    set(SCOP_DEBUG OFF)
 endif ()
 
 set(SRC_PARSER
@@ -82,6 +76,14 @@ set(SRC_MAIN
         include/application.h src/application.cpp)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS})
+target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -Wall -Wextra)
+
+if (${SCOP_DEBUG})
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEBUG=true)
+else ()
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEBUG=false)
+    target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -Werror)
+endif ()
 
 target_include_directories(${CMAKE_PROJECT_NAME}
         PRIVATE include
@@ -90,4 +92,4 @@ target_include_directories(${CMAKE_PROJECT_NAME}
 target_link_libraries(${CMAKE_PROJECT_NAME}
         PRIVATE ${Vulkan_LIBRARIES}
         PRIVATE glfw)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE libshaderc)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE shaderc)

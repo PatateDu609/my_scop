@@ -9,6 +9,6 @@ parser::ifs_error::ifs_error(const std::string &filename) {
 }
 
 
-const char *parser::ifs_error::what() const {
+const char *parser::ifs_error::what() const throw() {
 	return err_str.c_str();
 }

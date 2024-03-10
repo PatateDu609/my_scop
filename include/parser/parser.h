@@ -13,7 +13,7 @@ namespace parser {
 	public:
 		explicit ifs_error(const std::string &filename);
 
-		[[nodiscard]] const char *what() const override;
+		[[nodiscard]] const char *what() const throw() override;
 
 	private:
 		std::string err_str;
