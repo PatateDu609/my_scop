@@ -4,47 +4,90 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
 
+include(FetchContent)
+
+# Setup Glfw
+FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw
+        GIT_TAG 7b6aead9fb88b3623e3b3725ebb42670cbe4c579 # tag/3.4
+)
+FetchContent_GetProperties(glfw)
+if (NOT glfw_POPULATED)
+    FetchContent_Populate(glfw)
+
+    set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "Build the GLFW example programs")
+    set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "Build the GLFW test programs")
+    set(GLFW_BUILD_DOCS OFF CACHE INTERNAL "Build the GLFW documentation")
+    set(GLFW_INSTALL OFF CACHE INTERNAL "Generate installation target")
+
+    add_subdirectory(${glfw_SOURCE_DIR} ${glfw_BINARY_DIR})
+endif ()
+
+#FetchContent_Declare(
+#        SPIRV-Tools
+#         GIT_REPOSITORY  https://github.com/KhronosGroup/SPIRV-Tools.git
+#         GIT_TAG         f0cc85efdbbe3a46eae90e0f915dc1509836d0fc # tag/vulkan-sdk-1.3.275.0
+#)
+#FetchContent_MakeAvailable(SPIRV-Tools)
+
+FetchContent_Declare(
+        shaderc
+        GIT_REPOSITORY https://github.com/google/shaderc
+        GIT_TAG d792558a8902cb39b1c237243cc4edab226513a5 # tag/v2024.0
+)
+FetchContent_GetProperties(shaderc)
+if (NOT shaderc_POPULATED)
+    FetchContent_Populate(shaderc)
+    set($ENV{GIT_SYNC_DEPS_QUIET} 1)
+    execute_process(
+            COMMAND python3 utils/git-sync-deps
+            WORKING_DIRECTORY ${shaderc_SOURCE_DIR}
+            COMMAND_ERROR_IS_FATAL ANY
+            OUTPUT_FILE git-sync-deps.out
+    )
+
+    set(SHADERC_SKIP_TESTS ON CACHE INTERNAL "Disables tests in ShaderC")
+    set(SHADERC_SKIP_EXAMPLES ON CACHE INTERNAL "Disables examples in ShaderC")
+    set(SHADERC_SKIP_INSTALL ON CACHE INTERNAL "Disables installation in ShaderC")
+
+    add_subdirectory(${shaderc_SOURCE_DIR} ${shaderc_BINARY_DIR})
+endif ()
+
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-	message(STATUS "Enabling Debug mode")
-	add_definitions(-DDEBUG=true)
+    message(STATUS "Enabling Debug mode")
+    add_definitions(-DDEBUG=true)
 else ()
-	message(STATUS "Disabling Debug mode")
-	add_definitions(-DDEBUG=false)
+    message(STATUS "Disabling Debug mode")
+    add_definitions(-DDEBUG=false)
 endif ()
 
 set(SRC_PARSER
-		include/parser/parser.h src/parser/parser.cpp
-		include/parser/line_objects.h
-		src/parser/line_parser.cpp
-		src/parser/exceptions.cpp
-		include/parser/utils.h src/parser/utils.cpp)
+        include/parser/parser.h src/parser/parser.cpp
+        include/parser/line_objects.h
+        src/parser/line_parser.cpp
+        src/parser/exceptions.cpp
+        include/parser/utils.h src/parser/utils.cpp)
 
 set(SRC_GRAPHICS
-		include/graphics/vulkan.h src/graphics/vulkan.cpp
-		include/graphics/utils.h src/graphics/utils.cpp
-		include/graphics/debug.h src/graphics/debug.cpp
-		include/graphics/renderer.h src/graphics/renderer.cpp
-		include/graphics/queue_families.h src/graphics/queue_families.cpp
-		include/graphics/swap_chain.h src/graphics/swap_chain.cpp)
+        include/graphics/vulkan.h src/graphics/vulkan.cpp
+        include/graphics/utils.h src/graphics/utils.cpp
+        include/graphics/debug.h src/graphics/debug.cpp
+        include/graphics/renderer.h src/graphics/renderer.cpp
+        include/graphics/queue_families.h src/graphics/queue_families.cpp
+        include/graphics/swap_chain.h src/graphics/swap_chain.cpp)
 
 set(SRC_MAIN
-		src/main.cpp
-		include/application.h src/application.cpp)
+        src/main.cpp
+        include/application.h src/application.cpp)
 
-add_executable(scop ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS})
+add_executable(${CMAKE_PROJECT_NAME} ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS})
 
-# Setup GLFW
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(lib/glfw-3.3.8)
+target_include_directories(${CMAKE_PROJECT_NAME}
+        PRIVATE include
+        PUBLIC ${Vulkan_INCLUDE_DIRS})
 
-target_include_directories(scop
-		PRIVATE include
-		PUBLIC ${Vulkan_INCLUDE_DIRS})
-
-target_link_libraries(scop
-		PRIVATE ${Vulkan_LIBRARIES}
-		PRIVATE glfw)
-target_link_libraries(scop PRIVATE debug $ENV{VULKAN_SDK}/Lib/shaderc_combinedd.lib)
-target_link_libraries(scop PRIVATE optimized $ENV{VULKAN_SDK}/Lib/shaderc_combined.lib)
+target_link_libraries(${CMAKE_PROJECT_NAME}
+        PRIVATE ${Vulkan_LIBRARIES}
+        PRIVATE glfw)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE libshaderc)
