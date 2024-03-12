@@ -1,3 +1,4 @@
+#include <memory>
 #include <stdexcept>
 #include <iostream>
 #include "graphics/vulkan.h"
@@ -5,6 +6,7 @@
 #include "graphics/utils.h"
 #include "graphics/debug.h"
 #include "graphics/queue_families.h"
+#include <utility>
 
 
 using graphics::VulkanInstance;
@@ -19,19 +21,12 @@ VulkanInstance::VulkanInstance() : _instance(), _debugMessenger(), _renderer(), 
 VulkanInstance::~VulkanInstance() {
 	vkDestroyDevice(_device, nullptr);
 
-	if (ENABLE_VALIDATION_LAYERS) //NOLINT: Simplify
+	if constexpr (ENABLE_VALIDATION_LAYERS) //NOLINT: Simplify
 		debug::destroy_debug_utils_messenger_ext(_instance, _debugMessenger, nullptr);
 
 	_renderer->cleanup_surface();
 
 	vkDestroyInstance(_instance, nullptr);
-
-	delete _renderer;
-}
-
-
-void VulkanInstance::set_renderer(Renderer *renderer) {
-	_renderer = renderer;
 }
 
 
@@ -45,24 +40,24 @@ void VulkanInstance::create_instance() {
 		throw std::runtime_error("validation layers requested but not supported");
 
 	VkApplicationInfo appInfo{};
-	appInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.apiVersion         = VK_API_VERSION_1_0;
-	appInfo.pApplicationName   = WINDOW_TITLE;
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.apiVersion = VK_API_VERSION_1_0;
+	appInfo.pApplicationName = WINDOW_TITLE;
 	appInfo.applicationVersion = APPLICATION_VERSION;
-	appInfo.pEngineName        = ENGINE;
-	appInfo.engineVersion      = ENGINE_VERSION;
+	appInfo.pEngineName = ENGINE;
+	appInfo.engineVersion = ENGINE_VERSION;
 
 	VkInstanceCreateInfo createInfo{};
-	createInfo.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &appInfo;
 
 	auto extensions = get_required_extensions();
-	createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 	createInfo.ppEnabledExtensionNames = extensions.data();
 
 	createInfo.enabledLayerCount = 0;
 	if (ENABLE_VALIDATION_LAYERS) { //NOLINT: Simplify
-		createInfo.enabledLayerCount   = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
 		auto debugCreateInfo = debug::get_debug_messenger_create_info();
@@ -77,7 +72,7 @@ void VulkanInstance::create_instance() {
 
 
 void VulkanInstance::create_debug_messenger() {
-	if (!ENABLE_VALIDATION_LAYERS) // NOLINT
+	if constexpr (!ENABLE_VALIDATION_LAYERS) // NOLINT
 		return;
 
 	auto createInfo = debug::get_debug_messenger_create_info();
@@ -108,14 +103,14 @@ void VulkanInstance::create_device(VkPhysicalDevice device) {
 	auto indices = graphics::find_queue_families(device, _renderer->get_surface());
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	auto                                 uniqueQueueFamilies = static_cast<std::set<uint32_t>>(indices);
-	float                                queuePriority       = 1.0f;
+	auto uniqueQueueFamilies = static_cast<std::set<uint32_t>>(indices);
+	float queuePriority = 1.0f;
 
 	for (uint32_t queueFamily: uniqueQueueFamilies) {
 		decltype(queueCreateInfos)::value_type queueCreateInfo{};
-		queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queueCreateInfo.queueFamilyIndex = queueFamily;
-		queueCreateInfo.queueCount       = 1;
+		queueCreateInfo.queueCount = 1;
 		queueCreateInfo.pQueuePriorities = &queuePriority;
 
 		queueCreateInfos.push_back(queueCreateInfo);
@@ -126,16 +121,16 @@ void VulkanInstance::create_device(VkPhysicalDevice device) {
 	deviceFeatures.sampleRateShading = VK_TRUE;
 
 	VkDeviceCreateInfo createInfo{};
-	createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.pQueueCreateInfos       = queueCreateInfos.data();
-	createInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size());
-	createInfo.pEnabledFeatures        = &deviceFeatures;
-	createInfo.enabledExtensionCount   = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
 	createInfo.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
-	createInfo.enabledLayerCount       = 0;
+	createInfo.enabledLayerCount = 0;
 
 	if (ENABLE_VALIDATION_LAYERS) { //NOLINT: Simplify
-		createInfo.enabledLayerCount   = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 	}
 

@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include "graphics/vulkan.h"
+#include <memory>
 
 #ifndef DEBUG
 #define DEBUG true
@@ -37,11 +38,9 @@ private:
 	                              VkPhysicalDeviceProperties deviceProperties,
 	                              VkPhysicalDeviceFeatures deviceFeatures) const;
 
-	GLFWwindow               *_window;
-	graphics::VulkanInstance *_instance;
+	std::shared_ptr<GLFWwindow>               _window;
+	std::unique_ptr<graphics::VulkanInstance> _instance;
 	VkPhysicalDevice         _physicalDevice;
 };
-
-extern Application *app;
 
 #endif //SCOP_APPLICATION_H

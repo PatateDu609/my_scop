@@ -18,7 +18,7 @@ std::vector<const char *> graphics::get_required_extensions() {
 
 	std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-	if (ENABLE_VALIDATION_LAYERS) //NOLINT: Simplify
+	if constexpr (ENABLE_VALIDATION_LAYERS) //NOLINT: Simplify
 		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
 	return extensions;

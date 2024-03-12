@@ -22,8 +22,8 @@ namespace graphics {
 		VulkanInstance *_instance;
 		GLFWwindow     *_window;
 		VkSurfaceKHR   _surface;
-		VkQueue        _graphics;
-		VkQueue        _present;
+		VkQueue        _graphics{};
+		VkQueue        _present{};
 
 		friend class VulkanInstance;
 	};

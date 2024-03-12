@@ -24,17 +24,17 @@ Application::Application(int ac, char **av) : _window(nullptr), _instance(), _ph
 
 
 Application::~Application() {
-	delete _instance;
+	_instance.reset();
 
-	glfwDestroyWindow(_window);
+	_window.reset();
 	glfwTerminate();
 }
 
 
 void Application::init() {
 	init_window();
-	_instance = new graphics::VulkanInstance();
-	_instance->set_renderer(new graphics::Renderer(_instance, _window));
+	_instance = std::make_unique<graphics::VulkanInstance>();
+	_instance->set_renderer(_instance.get(), _window.get());
 	select_physical_device();
 	_instance->create_device(_physicalDevice);
 }
@@ -45,15 +45,15 @@ void Application::init_window() {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	_window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, nullptr, nullptr);
+	_window.reset(glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, nullptr, nullptr), glfwDestroyWindow);
 	std::cerr << "GLFW window created" << std::endl;
 
-	glfwSetWindowUserPointer(_window, this);
+	glfwSetWindowUserPointer(_window.get(), this);
 }
 
 
 int Application::run() {
-	while (!glfwWindowShouldClose(_window)) {
+	while (!glfwWindowShouldClose(_window.get())) {
 		glfwPollEvents();
 	}
 
@@ -62,7 +62,7 @@ int Application::run() {
 
 
 void Application::select_physical_device() {
-	auto                                                       physicalDevices = _instance->enumerate_physical_devices();
+	auto physicalDevices = _instance->enumerate_physical_devices();
 	std::multimap<uint32_t, VkPhysicalDevice, std::greater<> > ranking;
 
 	for (const auto &physicalDevice: physicalDevices) {
@@ -84,7 +84,7 @@ void Application::select_physical_device() {
 
 uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physicalDevice) const {
 	VkPhysicalDeviceProperties deviceProperties;
-	VkPhysicalDeviceFeatures   deviceFeatures;
+	VkPhysicalDeviceFeatures deviceFeatures;
 	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
 	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
@@ -113,8 +113,8 @@ bool Application::check_mandatory_features(VkPhysicalDevice physicalDevice,
 	auto surface = _instance->get_surface();
 
 	bool extensionSupported = graphics::check_device_extension_support(physicalDevice);
-	auto queueFamilies      = graphics::find_queue_families(physicalDevice, surface);
-	auto swapChainSupport   = graphics::query_swap_chain_support(physicalDevice, surface);
+	auto queueFamilies = graphics::find_queue_families(physicalDevice, surface);
+	auto swapChainSupport = graphics::query_swap_chain_support(physicalDevice, surface);
 
 	return queueFamilies && extensionSupported && swapChainSupport;
 }

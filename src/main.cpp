@@ -1,12 +1,9 @@
 #include <iostream>
 #include "application.h"
 
-Application *app;
-
-
 int main(int ac, char **av) {
 	try {
-		app = new Application(ac, av);
+		auto app = std::make_shared<Application>(ac, av);
 
 		return app->run();
 	} catch (const std::exception &e) {
