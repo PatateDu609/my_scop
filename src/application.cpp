@@ -107,7 +107,7 @@ uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physica
 bool Application::check_mandatory_features(VkPhysicalDevice physicalDevice,
                                            VkPhysicalDeviceProperties,
                                            VkPhysicalDeviceFeatures deviceFeatures) const {
-	if (!deviceFeatures.geometryShader || !deviceFeatures.sampleRateShading || !deviceFeatures.samplerAnisotropy)
+	if (!deviceFeatures.sampleRateShading || !deviceFeatures.samplerAnisotropy)
 		return false;
 
 	auto surface = _instance->get_surface();
