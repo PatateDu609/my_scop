@@ -2,6 +2,7 @@
 #define SCOP_UTILS_H
 
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace graphics {
 	extern const std::vector<const char *> VALIDATION_LAYERS;
