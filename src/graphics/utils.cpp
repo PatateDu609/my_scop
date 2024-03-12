@@ -8,16 +8,21 @@
 
 std::vector<char const *> const graphics::VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
 
-std::vector<char const *> const graphics::DEVICE_EXTENSIONS = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+std::vector<char const *> const graphics::DEVICE_EXTENSIONS = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#if defined __APPLE__ || (defined VK_KHR_portability_enumeration && VK_KHR_portability_enumeration == 1)
+	"VK_KHR_portability_subset",
+#endif
+};
 
-std::vector<char const *>		graphics::get_required_extensions() {
-	  uint32_t					glfwExtensionCount = 0;
-	  char const			  **glfwExtensions	   = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+std::vector<char const *> graphics::get_required_extensions() {
+	uint32_t				  glfwExtensionCount = 0;
+	char const				**glfwExtensions	 = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-	  std::vector<char const *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+	std::vector<char const *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-	  if constexpr (ENABLE_VALIDATION_LAYERS) // NOLINT: Simplify
-		  extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+	if constexpr (ENABLE_VALIDATION_LAYERS) // NOLINT: Simplify
+		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
 #if defined __APPLE__ || (defined VK_KHR_portability_enumeration && VK_KHR_portability_enumeration == 1)
 	extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);

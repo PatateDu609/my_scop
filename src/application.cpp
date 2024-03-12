@@ -83,8 +83,8 @@ void Application::select_physical_device() {
 
 
 uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physicalDevice) const {
-	VkPhysicalDeviceProperties deviceProperties;
-	VkPhysicalDeviceFeatures deviceFeatures;
+	VkPhysicalDeviceProperties deviceProperties{};
+	VkPhysicalDeviceFeatures deviceFeatures{};
 	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
 	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
