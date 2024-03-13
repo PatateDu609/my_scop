@@ -15,6 +15,8 @@ namespace graphics {
 		void cleanup_surface();
 		[[nodiscard]] VkSurfaceKHR get_surface() const;
 
+		GLFWwindow				  *getWindow() const;
+
 	private:
 		void init_surface();
 		void acquire_queues(const QueueFamilyIndices &indices);

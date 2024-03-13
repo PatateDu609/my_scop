@@ -19,7 +19,7 @@ AlignConsecutiveDeclarations:
   AcrossEmptyLines: true
   AlignCompound: true
   PadOperators: true
-QualifierAlignment: Right
+QualifierAlignment: Custom
 ColumnLimit: 120
 AlignEscapedNewlines: Right
 
@@ -44,3 +44,21 @@ EmptyLineAfterAccessModifier: Never
 EmptyLineBeforeAccessModifier: Always
 SpaceAfterTemplateKeyword: true
 FixNamespaceComments: true
+
+AllowShortFunctionsOnASingleLine: None
+AllowShortLambdasOnASingleLine: Inline
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+QualifierOrder:
+  - const
+  - constexpr
+  - static
+  - inline
+  - friend
+  - volatile
+  - restrict
+  - type

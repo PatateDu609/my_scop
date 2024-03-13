@@ -1,27 +1,29 @@
-#include <memory>
-#include <stdexcept>
-#include <iostream>
 #include "graphics/vulkan.h"
+
 #include "application.h"
-#include "graphics/utils.h"
 #include "graphics/debug.h"
 #include "graphics/queue_families.h"
-#include <utility>
+#include "graphics/swap_chain.h"
+#include "graphics/utils.h"
+
+#include <iostream>
+#include <stdexcept>
 
 
 using graphics::VulkanInstance;
 
 
-VulkanInstance::VulkanInstance() : _instance(), _debugMessenger(), _renderer(), _device() {
+VulkanInstance::VulkanInstance() : _instance(), _debugMessenger(), _renderer(), _swapchain(), _device() {
 	create_instance();
 	create_debug_messenger();
 }
 
 
 VulkanInstance::~VulkanInstance() {
+	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 	vkDestroyDevice(_device, nullptr);
 
-	if constexpr (ENABLE_VALIDATION_LAYERS) //NOLINT: Simplify
+	if constexpr (ENABLE_VALIDATION_LAYERS) // NOLINT: Simplify
 		debug::destroy_debug_utils_messenger_ext(_instance, _debugMessenger, nullptr);
 
 	_renderer->cleanup_surface();
@@ -36,23 +38,23 @@ VkSurfaceKHR VulkanInstance::get_surface() const {
 
 
 void VulkanInstance::create_instance() {
-	if (ENABLE_VALIDATION_LAYERS && !check_validation_layer_support()) //NOLINT: Simplify
+	if (ENABLE_VALIDATION_LAYERS && !check_validation_layer_support()) // NOLINT: Simplify
 		throw std::runtime_error("validation layers requested but not supported");
 
 	VkApplicationInfo appInfo{};
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.apiVersion = VK_API_VERSION_1_0;
-	appInfo.pApplicationName = WINDOW_TITLE;
+	appInfo.sType			   = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.apiVersion		   = VK_API_VERSION_1_0;
+	appInfo.pApplicationName   = WINDOW_TITLE;
 	appInfo.applicationVersion = APPLICATION_VERSION;
-	appInfo.pEngineName = ENGINE;
-	appInfo.engineVersion = ENGINE_VERSION;
+	appInfo.pEngineName		   = ENGINE;
+	appInfo.engineVersion	   = ENGINE_VERSION;
 
 	VkInstanceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
+	createInfo.sType				   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pApplicationInfo		   = &appInfo;
 
-	auto extensions = get_required_extensions();
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+	auto extensions					   = get_required_extensions();
+	createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
 	createInfo.ppEnabledExtensionNames = extensions.data();
 
 #if defined __APPLE__ || (defined VK_KHR_portability_enumeration && VK_KHR_portability_enumeration == 1)
@@ -60,12 +62,12 @@ void VulkanInstance::create_instance() {
 #endif
 
 	createInfo.enabledLayerCount = 0;
-	if (ENABLE_VALIDATION_LAYERS) { //NOLINT: Simplify
-		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+	if (ENABLE_VALIDATION_LAYERS) { // NOLINT: Simplify
+		createInfo.enabledLayerCount   = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
-		auto debugCreateInfo = debug::get_debug_messenger_create_info();
-		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *) &debugCreateInfo;
+		auto debugCreateInfo		   = debug::get_debug_messenger_create_info();
+		createInfo.pNext			   = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
 	}
 
 	if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS)
@@ -104,17 +106,17 @@ std::vector<VkPhysicalDevice> VulkanInstance::enumerate_physical_devices() const
 
 
 void VulkanInstance::create_device(VkPhysicalDevice device) {
-	auto indices = graphics::find_queue_families(device, _renderer->get_surface());
+	auto								 indices = graphics::find_queue_families(device, _renderer->get_surface());
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	auto uniqueQueueFamilies = static_cast<std::set<uint32_t>>(indices);
-	float queuePriority = 1.0f;
+	auto								 uniqueQueueFamilies = static_cast<std::set<uint32_t>>(indices);
+	float								 queuePriority		 = 1.0f;
 
-	for (uint32_t queueFamily: uniqueQueueFamilies) {
+	for (uint32_t queueFamily : uniqueQueueFamilies) {
 		decltype(queueCreateInfos)::value_type queueCreateInfo{};
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.sType			 = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queueCreateInfo.queueFamilyIndex = queueFamily;
-		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.queueCount		 = 1;
 		queueCreateInfo.pQueuePriorities = &queuePriority;
 
 		queueCreateInfos.push_back(queueCreateInfo);
@@ -125,16 +127,16 @@ void VulkanInstance::create_device(VkPhysicalDevice device) {
 	deviceFeatures.sampleRateShading = VK_TRUE;
 
 	VkDeviceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.pQueueCreateInfos = queueCreateInfos.data();
-	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-	createInfo.pEnabledFeatures = &deviceFeatures;
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
+	createInfo.sType				   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.pQueueCreateInfos	   = queueCreateInfos.data();
+	createInfo.queueCreateInfoCount	   = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pEnabledFeatures		   = &deviceFeatures;
+	createInfo.enabledExtensionCount   = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
 	createInfo.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
-	createInfo.enabledLayerCount = 0;
+	createInfo.enabledLayerCount	   = 0;
 
-	if (ENABLE_VALIDATION_LAYERS) { //NOLINT: Simplify
-		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+	if (ENABLE_VALIDATION_LAYERS) { // NOLINT: Simplify
+		createInfo.enabledLayerCount   = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 	}
 
@@ -144,4 +146,53 @@ void VulkanInstance::create_device(VkPhysicalDevice device) {
 	_renderer->acquire_queues(indices);
 
 	std::cerr << "Created successfully a logical device and acquired graphics and present queues" << std::endl;
+}
+
+void graphics::VulkanInstance::create_swapchain(VkPhysicalDevice physical) {
+	SwapChainSupportDetails swapChainSupport = query_swap_chain_support(physical, get_surface());
+
+	VkPresentModeKHR		presentMode		 = swapChainSupport.chooseSwapPresentMode();
+	VkSurfaceFormatKHR		format			 = swapChainSupport.chooseSwapSurfaceFormat();
+	VkExtent2D				extent			 = swapChainSupport.chooseSwapExtent(_renderer->_window);
+
+	uint32_t				imageCount		 = swapChainSupport.capabilities.minImageCount + 1;
+	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+		imageCount = swapChainSupport.capabilities.maxImageCount;
+
+	VkSwapchainCreateInfoKHR createInfo{};
+	createInfo.sType				= VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.surface				= get_surface();
+
+	createInfo.minImageCount		= imageCount;
+	createInfo.imageExtent			= extent;
+	createInfo.imageFormat			= format.format;
+	createInfo.imageColorSpace		= format.colorSpace;
+	createInfo.imageArrayLayers		= 1;
+	createInfo.imageUsage			= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	QueueFamilyIndices		indices = find_queue_families(physical, get_surface());
+	std::array<uint32_t, 2> indices_arr{indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+	if (indices.graphicsFamily != indices.presentFamily) {
+		createInfo.imageSharingMode		 = VK_SHARING_MODE_CONCURRENT;
+		createInfo.queueFamilyIndexCount = indices_arr.size();
+		createInfo.pQueueFamilyIndices	 = indices_arr.data();
+	} else {
+		createInfo.imageSharingMode		 = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices	 = nullptr;
+	}
+
+	createInfo.preTransform	  = swapChainSupport.capabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.presentMode	  = presentMode;
+	createInfo.clipped		  = VK_TRUE;
+
+	createInfo.oldSwapchain	  = VK_NULL_HANDLE;
+
+	if (vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swapchain) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create swapchain");
+	}
+
+	std::cerr << "Successfully created swapchain" << std::endl;
 }

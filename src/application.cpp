@@ -1,10 +1,12 @@
-#include <iostream>
-#include <map>
 #include "application.h"
-#include "parser/parser.h"
-#include "graphics/utils.h"
+
 #include "graphics/queue_families.h"
 #include "graphics/swap_chain.h"
+#include "graphics/utils.h"
+#include "parser/parser.h"
+
+#include <iostream>
+#include <map>
 
 
 Application::Application(int ac, char **av) : _window(nullptr), _instance(), _physicalDevice(VK_NULL_HANDLE) {
@@ -37,6 +39,7 @@ void Application::init() {
 	_instance->set_renderer(_instance.get(), _window.get());
 	select_physical_device();
 	_instance->create_device(_physicalDevice);
+	_instance->create_swapchain(_physicalDevice);
 }
 
 
@@ -62,10 +65,10 @@ int Application::run() {
 
 
 void Application::select_physical_device() {
-	auto physicalDevices = _instance->enumerate_physical_devices();
-	std::multimap<uint32_t, VkPhysicalDevice, std::greater<> > ranking;
+	auto													  physicalDevices = _instance->enumerate_physical_devices();
+	std::multimap<uint32_t, VkPhysicalDevice, std::greater<>> ranking;
 
-	for (const auto &physicalDevice: physicalDevices) {
+	for (const auto &physicalDevice : physicalDevices) {
 		uint32_t score = check_physical_device_suitability(physicalDevice);
 		if (score != 0) {
 			ranking.emplace(score, physicalDevice);
@@ -84,7 +87,7 @@ void Application::select_physical_device() {
 
 uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physicalDevice) const {
 	VkPhysicalDeviceProperties deviceProperties{};
-	VkPhysicalDeviceFeatures deviceFeatures{};
+	VkPhysicalDeviceFeatures   deviceFeatures{};
 	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
 	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
@@ -104,17 +107,16 @@ uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physica
 }
 
 
-bool Application::check_mandatory_features(VkPhysicalDevice physicalDevice,
-                                           VkPhysicalDeviceProperties,
-                                           VkPhysicalDeviceFeatures deviceFeatures) const {
+bool Application::check_mandatory_features(VkPhysicalDevice			physicalDevice, VkPhysicalDeviceProperties,
+										   VkPhysicalDeviceFeatures deviceFeatures) const {
 	if (!deviceFeatures.sampleRateShading || !deviceFeatures.samplerAnisotropy)
 		return false;
 
-	auto surface = _instance->get_surface();
+	auto surface			= _instance->get_surface();
 
 	bool extensionSupported = graphics::check_device_extension_support(physicalDevice);
-	auto queueFamilies = graphics::find_queue_families(physicalDevice, surface);
-	auto swapChainSupport = graphics::query_swap_chain_support(physicalDevice, surface);
+	auto queueFamilies		= graphics::find_queue_families(physicalDevice, surface);
+	auto swapChainSupport	= graphics::query_swap_chain_support(physicalDevice, surface);
 
 	return queueFamilies && extensionSupported && swapChainSupport;
 }
