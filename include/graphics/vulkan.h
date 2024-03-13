@@ -28,6 +28,7 @@ public:
 
 	void										create_device(VkPhysicalDevice device);
 	void										create_swapchain(VkPhysicalDevice physical);
+	void										create_image_views();
 
 private:
 	void create_instance();
@@ -42,6 +43,7 @@ private:
 
 	VkSwapchainKHR			  _swapchain{};
 	std::vector<VkImage>	  _swapchainImages{};
+	std::vector<VkImageView>  _swapchainImageViews{};
 	VkExtent2D				  _swapchainExtent{};
 	VkFormat				  _swapchainFormat{};
 

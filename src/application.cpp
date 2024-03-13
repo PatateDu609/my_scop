@@ -40,6 +40,7 @@ void Application::init() {
 	select_physical_device();
 	_instance->create_device(_physicalDevice);
 	_instance->create_swapchain(_physicalDevice);
+	_instance->create_image_views();
 }
 
 
