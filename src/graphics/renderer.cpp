@@ -35,6 +35,9 @@ VkSurfaceKHR Renderer::get_surface() const {
 
 
 void Renderer::acquire_queues(const QueueFamilyIndices &indices) {
-	vkGetDeviceQueue(_instance->_device, indices.graphicsFamily.value(), 0, &_graphics);
-	vkGetDeviceQueue(_instance->_device, indices.presentFamily.value(), 0, &_present);
+	if (indices.graphicsFamily)
+		vkGetDeviceQueue(_instance->_device, indices.graphicsFamily.value(), 0, &_graphics);
+
+	if (indices.presentFamily)
+		vkGetDeviceQueue(_instance->_device, indices.presentFamily.value(), 0, &_present);
 }
