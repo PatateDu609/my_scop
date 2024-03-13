@@ -39,7 +39,11 @@ private:
 	VkInstance				  _instance;
 	VkDebugUtilsMessengerEXT  _debugMessenger;
 	std::shared_ptr<Renderer> _renderer;
+
 	VkSwapchainKHR			  _swapchain;
+	std::vector<VkImage>	  _swapchainImages;
+	VkExtent2D _swapchainExtent;
+	VkFormat _swapchainFormat;
 
 	VkDevice				  _device;
 

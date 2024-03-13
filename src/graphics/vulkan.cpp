@@ -13,7 +13,8 @@
 using graphics::VulkanInstance;
 
 
-VulkanInstance::VulkanInstance() : _instance(), _debugMessenger(), _renderer(), _swapchain(), _device() {
+VulkanInstance::VulkanInstance()
+	: _instance(), _debugMessenger(), _renderer(), _swapchain(), _swapchainImages(), _device() {
 	create_instance();
 	create_debug_messenger();
 }
@@ -194,5 +195,12 @@ void graphics::VulkanInstance::create_swapchain(VkPhysicalDevice physical) {
 		throw std::runtime_error("couldn't create swapchain");
 	}
 
-	std::cerr << "Successfully created swapchain" << std::endl;
+	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr);
+	_swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data());
+
+	_swapchainFormat = format.format;
+	_swapchainExtent = extent;
+
+	std::cerr << "Successfully created swapchain and retrieved associated images" << std::endl;
 }
