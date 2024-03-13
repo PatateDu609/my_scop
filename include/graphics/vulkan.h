@@ -36,16 +36,16 @@ private:
 
 	operator VkInstance(); // NOLINT(google-explicit-constructor)
 
-	VkInstance				  _instance;
-	VkDebugUtilsMessengerEXT  _debugMessenger;
-	std::shared_ptr<Renderer> _renderer;
+	VkInstance				  _instance{};
+	VkDebugUtilsMessengerEXT  _debugMessenger{};
+	std::shared_ptr<Renderer> _renderer{};
 
-	VkSwapchainKHR			  _swapchain;
-	std::vector<VkImage>	  _swapchainImages;
-	VkExtent2D _swapchainExtent;
-	VkFormat _swapchainFormat;
+	VkSwapchainKHR			  _swapchain{};
+	std::vector<VkImage>	  _swapchainImages{};
+	VkExtent2D				  _swapchainExtent{};
+	VkFormat				  _swapchainFormat{};
 
-	VkDevice				  _device;
+	VkDevice				  _device{};
 
 	friend class Renderer;
 };

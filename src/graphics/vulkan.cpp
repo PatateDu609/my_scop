@@ -13,8 +13,7 @@
 using graphics::VulkanInstance;
 
 
-VulkanInstance::VulkanInstance()
-	: _instance(), _debugMessenger(), _renderer(), _swapchain(), _swapchainImages(), _device() {
+VulkanInstance::VulkanInstance() {
 	create_instance();
 	create_debug_messenger();
 }
