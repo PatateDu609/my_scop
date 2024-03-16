@@ -1,6 +1,7 @@
 #ifndef SCOP_VULKAN_H
 #define SCOP_VULKAN_H
 
+#include "pipeline.h"
 #include "renderer.h"
 
 #include <string>
@@ -14,9 +15,9 @@ constexpr uint32_t	  ENGINE_VERSION = VK_MAKE_VERSION(1, 0, 0);
 
 class VulkanInstance {
 public:
-	VulkanInstance();
+									 VulkanInstance();
 
-	~VulkanInstance();
+	~								 VulkanInstance();
 
 	template <typename... Args> void set_renderer(Args &&...args) {
 		_renderer = std::make_shared<Renderer>(std::forward<Args>(args)...);
@@ -29,23 +30,26 @@ public:
 	void										create_device(VkPhysicalDevice device);
 	void										create_swapchain(VkPhysicalDevice physical);
 	void										create_image_views();
+	void										create_pipeline(std::string vertex_shader, std::string fragment_shader);
 
 private:
-	void create_instance();
+	void					  create_instance();
 
-	void create_debug_messenger();
+	void					  create_debug_messenger();
 
-	operator VkInstance(); // NOLINT(google-explicit-constructor)
+	explicit				  operator VkInstance() const;
 
 	VkInstance				  _instance{};
 	VkDebugUtilsMessengerEXT  _debugMessenger{};
-	std::shared_ptr<Renderer> _renderer{};
+	std::shared_ptr<Renderer> _renderer;
 
 	VkSwapchainKHR			  _swapchain{};
-	std::vector<VkImage>	  _swapchainImages{};
-	std::vector<VkImageView>  _swapchainImageViews{};
+	std::vector<VkImage>	  _swapchainImages;
+	std::vector<VkImageView>  _swapchainImageViews;
 	VkExtent2D				  _swapchainExtent{};
 	VkFormat				  _swapchainFormat{};
+
+	std::unique_ptr<Pipeline> _pipeline{nullptr};
 
 	VkDevice				  _device{};
 

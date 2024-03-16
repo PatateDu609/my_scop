@@ -1,5 +1,7 @@
-#include <iostream>
 #include "application.h"
+#include "graphics/shaders.h"
+
+#include <iostream>
 
 int main(int ac, char **av) {
 	try {

@@ -9,9 +9,7 @@
 #include <iostream>
 #include <stdexcept>
 
-
-using graphics::VulkanInstance;
-
+namespace graphics {
 
 VulkanInstance::VulkanInstance() {
 	create_instance();
@@ -20,6 +18,8 @@ VulkanInstance::VulkanInstance() {
 
 
 VulkanInstance::~VulkanInstance() {
+	_pipeline.reset();
+
 	for (const auto &imageView : _swapchainImageViews) {
 		vkDestroyImageView(_device, imageView, nullptr);
 	}
@@ -57,7 +57,7 @@ void VulkanInstance::create_instance() {
 	createInfo.sType				   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo		   = &appInfo;
 
-	auto extensions					   = get_required_extensions();
+	const auto extensions			   = get_required_extensions();
 	createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
 	createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -82,10 +82,10 @@ void VulkanInstance::create_instance() {
 
 
 void VulkanInstance::create_debug_messenger() {
-	if constexpr (!ENABLE_VALIDATION_LAYERS) // NOLINT
+	if constexpr (!ENABLE_VALIDATION_LAYERS)
 		return;
 
-	auto createInfo = debug::get_debug_messenger_create_info();
+	const auto createInfo = debug::get_debug_messenger_create_info();
 
 	if (debug::create_debug_utils_messenger_ext(_instance, &createInfo, nullptr, &_debugMessenger) != VK_SUCCESS)
 		throw std::runtime_error("couldn't setup debug messenger");
@@ -93,7 +93,7 @@ void VulkanInstance::create_debug_messenger() {
 }
 
 
-VulkanInstance::operator VkInstance() {
+VulkanInstance::operator VkInstance() const {
 	return _instance;
 }
 
@@ -152,32 +152,32 @@ void VulkanInstance::create_device(VkPhysicalDevice device) {
 	std::cerr << "Created successfully a logical device and acquired graphics and present queues" << std::endl;
 }
 
-void graphics::VulkanInstance::create_swapchain(VkPhysicalDevice physical) {
-	SwapChainSupportDetails swapChainSupport = query_swap_chain_support(physical, get_surface());
+void VulkanInstance::create_swapchain(const VkPhysicalDevice physical) {
+	const SwapChainSupportDetails swapChainSupport = query_swap_chain_support(physical, get_surface());
 
-	VkPresentModeKHR		presentMode		 = swapChainSupport.chooseSwapPresentMode();
-	VkSurfaceFormatKHR		format			 = swapChainSupport.chooseSwapSurfaceFormat();
-	VkExtent2D				extent			 = swapChainSupport.chooseSwapExtent(_renderer->_window);
+	const VkPresentModeKHR		  presentMode	   = swapChainSupport.chooseSwapPresentMode();
+	const auto [formatKHR, colorSpace]			   = swapChainSupport.chooseSwapSurfaceFormat();
+	const VkExtent2D extent						   = swapChainSupport.chooseSwapExtent(_renderer->_window);
 
-	uint32_t				imageCount		 = swapChainSupport.capabilities.minImageCount + 1;
+	uint32_t		 imageCount					   = swapChainSupport.capabilities.minImageCount + 1;
 	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
 		imageCount = swapChainSupport.capabilities.maxImageCount;
 
 	VkSwapchainCreateInfoKHR createInfo{};
-	createInfo.sType				= VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	createInfo.surface				= get_surface();
+	createInfo.sType									 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.surface									 = get_surface();
 
-	createInfo.minImageCount		= imageCount;
-	createInfo.imageExtent			= extent;
-	createInfo.imageFormat			= format.format;
-	createInfo.imageColorSpace		= format.colorSpace;
-	createInfo.imageArrayLayers		= 1;
-	createInfo.imageUsage			= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	createInfo.minImageCount							 = imageCount;
+	createInfo.imageExtent								 = extent;
+	createInfo.imageFormat								 = formatKHR;
+	createInfo.imageColorSpace							 = colorSpace;
+	createInfo.imageArrayLayers							 = 1;
+	createInfo.imageUsage								 = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	QueueFamilyIndices		indices = find_queue_families(physical, get_surface());
-	std::array<uint32_t, 2> indices_arr{indices.graphicsFamily.value(), indices.presentFamily.value()};
+	const auto [graphicsQueueFamily, presentQueueFamily] = find_queue_families(physical, get_surface());
+	const std::array indices_arr{graphicsQueueFamily.value(), presentQueueFamily.value()};
 
-	if (indices.graphicsFamily != indices.presentFamily) {
+	if (graphicsQueueFamily != presentQueueFamily) {
 		createInfo.imageSharingMode		 = VK_SHARING_MODE_CONCURRENT;
 		createInfo.queueFamilyIndexCount = indices_arr.size();
 		createInfo.pQueueFamilyIndices	 = indices_arr.data();
@@ -202,7 +202,7 @@ void graphics::VulkanInstance::create_swapchain(VkPhysicalDevice physical) {
 	_swapchainImages.resize(imageCount);
 	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data());
 
-	_swapchainFormat = format.format;
+	_swapchainFormat = formatKHR;
 	_swapchainExtent = extent;
 
 	std::cerr << "Successfully created swapchain and retrieved associated images" << std::endl;
@@ -237,3 +237,19 @@ void VulkanInstance::create_image_views() {
 		std::cerr << "Successfully created image view no " << i << std::endl;
 	}
 }
+
+void VulkanInstance::create_pipeline(std::string vertex_shader, std::string fragment_shader) {
+	_pipeline = std::make_unique<Pipeline>(_device, std::move(vertex_shader), std::move(fragment_shader));
+
+	if (!_pipeline->compile_shaders()) {
+		const auto &[errors, warnings] = _pipeline->get_num_errors();
+		std::cerr << "got " << errors << " errors and " << warnings << " warnings\n" << _pipeline->errors() << std::endl;
+		throw std::runtime_error("couldn't compile shaders");
+	}
+	_pipeline->setup_shader_modules();
+
+	_pipeline->setup_render_pass(_swapchainFormat);
+	_pipeline->setup(_swapchainExtent);
+}
+
+} // namespace graphics

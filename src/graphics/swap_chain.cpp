@@ -1,7 +1,8 @@
 #include "graphics/swap_chain.h"
 
-using graphics::SwapChainSupportDetails;
+#include <algorithm>
 
+using graphics::SwapChainSupportDetails;
 
 SwapChainSupportDetails graphics::query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface) {
 	SwapChainSupportDetails details;
@@ -60,7 +61,7 @@ VkExtent2D SwapChainSupportDetails::chooseSwapExtent(GLFWwindow *window) const {
 		.height = static_cast<uint32_t>(height),
 	};
 
-	extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+	extent.width  = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
 	extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
 	return extent;

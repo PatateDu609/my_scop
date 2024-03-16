@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(scop DESCRIPTION "a small 3D object loader")
+
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
@@ -69,7 +70,10 @@ set(SRC_GRAPHICS
         include/graphics/debug.h src/graphics/debug.cpp
         include/graphics/renderer.h src/graphics/renderer.cpp
         include/graphics/queue_families.h src/graphics/queue_families.cpp
-        include/graphics/swap_chain.h src/graphics/swap_chain.cpp)
+        include/graphics/swap_chain.h src/graphics/swap_chain.cpp
+        include/graphics/shaders.h
+        src/graphics/pipeline.cpp include/graphics/pipeline.h
+        src/graphics/shaders.cpp)
 
 set(SRC_MAIN
         src/main.cpp

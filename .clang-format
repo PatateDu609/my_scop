@@ -20,7 +20,7 @@ AlignConsecutiveDeclarations:
   AlignCompound: true
   PadOperators: true
 QualifierAlignment: Custom
-ColumnLimit: 120
+ColumnLimit: 160
 AlignEscapedNewlines: Right
 
 ReferenceAlignment: Right

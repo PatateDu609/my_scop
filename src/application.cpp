@@ -9,6 +9,12 @@
 #include <map>
 
 
+static void key_input(GLFWwindow * window, const int key, const int scancode, const int action, const int mods) {
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+		glfwSetWindowShouldClose(window, GLFW_TRUE);
+	}
+}
+
 Application::Application(int ac, char **av) : _window(nullptr), _instance(), _physicalDevice(VK_NULL_HANDLE) {
 	if (ac != 2) {
 		std::cerr << "usage: ./scop <scene file>" << std::endl;
@@ -41,6 +47,7 @@ void Application::init() {
 	_instance->create_device(_physicalDevice);
 	_instance->create_swapchain(_physicalDevice);
 	_instance->create_image_views();
+	_instance->create_pipeline("shaders/vertex.glsl", "shaders/frag.glsl");
 }
 
 
@@ -53,6 +60,7 @@ void Application::init_window() {
 	std::cerr << "GLFW window created" << std::endl;
 
 	glfwSetWindowUserPointer(_window.get(), this);
+	glfwSetKeyCallback(_window.get(), key_input);
 }
 
 
