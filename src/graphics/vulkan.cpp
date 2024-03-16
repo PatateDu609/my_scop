@@ -7,6 +7,7 @@
 #include "graphics/utils.h"
 
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 
 namespace graphics {
@@ -18,6 +19,10 @@ VulkanInstance::VulkanInstance() {
 
 
 VulkanInstance::~VulkanInstance() {
+	for (const auto &framebuffer : _framebuffers) {
+		vkDestroyFramebuffer(_device, framebuffer, nullptr);
+	}
+
 	_pipeline.reset();
 
 	for (const auto &imageView : _swapchainImageViews) {
@@ -251,5 +256,34 @@ void VulkanInstance::create_pipeline(std::string vertex_shader, std::string frag
 	_pipeline->setup_render_pass(_swapchainFormat);
 	_pipeline->setup(_swapchainExtent);
 }
+
+void VulkanInstance::create_framebuffers() {
+	_framebuffers.resize(_swapchainImageViews.size());
+
+	for (size_t i = 0; i < _framebuffers.size(); i++) {
+		std::array				attachments = {_swapchainImageViews[i]};
+
+		VkFramebufferCreateInfo createInfo{};
+		createInfo.sType		   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		createInfo.renderPass	   = _pipeline->renderPass;
+		createInfo.attachmentCount = attachments.size();
+		createInfo.pAttachments	   = attachments.data();
+		createInfo.width		   = _swapchainExtent.width;
+		createInfo.height		   = _swapchainExtent.height;
+		createInfo.layers		   = 1;
+
+
+		std::ostringstream oss;
+		oss << "framebuffer[" << i << "] for current device";
+
+		if (vkCreateFramebuffer(_device, &createInfo, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
+			throw std::runtime_error("couldn't create " + oss.str());
+		}
+
+		std::cerr << "Created successfully " << oss.str() << "\n";
+	}
+	std::cerr << std::flush;
+}
+
 
 } // namespace graphics

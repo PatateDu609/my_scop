@@ -31,27 +31,29 @@ public:
 	void										create_swapchain(VkPhysicalDevice physical);
 	void										create_image_views();
 	void										create_pipeline(std::string vertex_shader, std::string fragment_shader);
+	void										create_framebuffers();
 
 private:
-	void					  create_instance();
+	void					   create_instance();
 
-	void					  create_debug_messenger();
+	void					   create_debug_messenger();
 
-	explicit				  operator VkInstance() const;
+	explicit				   operator VkInstance() const;
 
-	VkInstance				  _instance{};
-	VkDebugUtilsMessengerEXT  _debugMessenger{};
-	std::shared_ptr<Renderer> _renderer;
+	VkInstance				   _instance{};
+	VkDebugUtilsMessengerEXT   _debugMessenger{};
+	std::shared_ptr<Renderer>  _renderer;
 
-	VkSwapchainKHR			  _swapchain{};
-	std::vector<VkImage>	  _swapchainImages;
-	std::vector<VkImageView>  _swapchainImageViews;
-	VkExtent2D				  _swapchainExtent{};
-	VkFormat				  _swapchainFormat{};
+	VkSwapchainKHR			   _swapchain{};
+	std::vector<VkImage>	   _swapchainImages;
+	std::vector<VkImageView>   _swapchainImageViews;
+	VkExtent2D				   _swapchainExtent{};
+	VkFormat				   _swapchainFormat{};
 
-	std::unique_ptr<Pipeline> _pipeline{nullptr};
+	std::unique_ptr<Pipeline>  _pipeline{nullptr};
+	std::vector<VkFramebuffer> _framebuffers;
 
-	VkDevice				  _device{};
+	VkDevice				   _device{};
 
 	friend class Renderer;
 };

@@ -49,6 +49,8 @@ public:
 		 Pipeline()								   = delete;
 		 Pipeline(const Pipeline &)				   = delete;
 	auto operator=(const Pipeline &) -> Pipeline & = delete;
+
+	friend class VulkanInstance;
 };
 
 } // namespace graphics
