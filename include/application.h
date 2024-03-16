@@ -26,6 +26,7 @@ public:
 	~Application();
 
 	int run();
+	void draw_frame();
 
 private:
 	void init();

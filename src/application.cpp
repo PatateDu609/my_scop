@@ -48,6 +48,10 @@ void Application::init() {
 	_instance->create_swapchain(_physicalDevice);
 	_instance->create_image_views();
 	_instance->create_pipeline("shaders/vertex.glsl", "shaders/frag.glsl");
+	_instance->create_framebuffers();
+	_instance->create_command_pool(_physicalDevice);
+	_instance->create_command_buffer();
+	_instance->create_sync_objects();
 }
 
 
@@ -67,7 +71,10 @@ void Application::init_window() {
 int Application::run() {
 	while (!glfwWindowShouldClose(_window.get())) {
 		glfwPollEvents();
+		_instance->render();
 	}
+
+	_instance->waitIdle();
 
 	return 0;
 }

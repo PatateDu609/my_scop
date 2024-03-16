@@ -42,4 +42,50 @@ void Renderer::acquire_queues(const QueueFamilyIndices &indices) {
 		vkGetDeviceQueue(_instance->_device, indices.presentFamily.value(), 0, &_present);
 }
 
+void Renderer::render() {
+	const VkDevice		  &device		 = _instance->_device;
+	const VkCommandBuffer &commandBuffer = _instance->_commandBuffer;
+	const VkFence		   inFlightFence = _instance->_inFlightFence;
+
+	vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+	vkResetFences(device, 1, &inFlightFence);
+
+	uint32_t img_idx;
+	vkAcquireNextImageKHR(device, _instance->_swapchain, UINT64_MAX, _instance->_imageAvailableSemaphore, VK_NULL_HANDLE, &img_idx);
+
+	vkResetCommandBuffer(commandBuffer, 0);
+	_instance->record_command_buffer(commandBuffer, img_idx);
+
+	const std::array							  waitSemaphore{_instance->_imageAvailableSemaphore};
+	constexpr std::array<VkPipelineStageFlags, 1> waitPipelineStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+	const std::array							  signalSemaphore{_instance->_renderFinishedSemaphore};
+
+	VkSubmitInfo								  submitInfo{};
+	submitInfo.sType				= VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.waitSemaphoreCount	= waitSemaphore.size();
+	submitInfo.pWaitSemaphores		= waitSemaphore.data();
+	submitInfo.pWaitDstStageMask	= waitPipelineStages.data();
+	submitInfo.commandBufferCount	= 1;
+	submitInfo.pCommandBuffers		= &commandBuffer;
+	submitInfo.signalSemaphoreCount = signalSemaphore.size();
+	submitInfo.pSignalSemaphores	= signalSemaphore.data();
+
+	if (vkQueueSubmit(_graphics, 1, &submitInfo, inFlightFence) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't submit graphics queue");
+	}
+
+	const std::array swapchains{_instance->_swapchain};
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType			   = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = signalSemaphore.size();
+	presentInfo.pWaitSemaphores	   = signalSemaphore.data();
+	presentInfo.swapchainCount	   = swapchains.size();
+	presentInfo.pSwapchains		   = swapchains.data();
+	presentInfo.pImageIndices	   = &img_idx;
+	presentInfo.pResults		   = nullptr;
+
+	vkQueuePresentKHR(_present, &presentInfo);
+}
+
+
 } // namespace graphics

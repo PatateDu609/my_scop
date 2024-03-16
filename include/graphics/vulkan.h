@@ -10,18 +10,26 @@
 #include <vulkan/vulkan.h>
 
 namespace graphics {
-const constexpr char *ENGINE		 = "gb_engine";
-constexpr uint32_t	  ENGINE_VERSION = VK_MAKE_VERSION(1, 0, 0);
+
+constexpr auto	   ENGINE		  = "gb_engine";
+constexpr uint32_t ENGINE_VERSION = VK_MAKE_VERSION(1, 0, 0);
 
 class VulkanInstance {
 public:
-									 VulkanInstance();
+	 VulkanInstance();
+	~VulkanInstance();
 
-	~								 VulkanInstance();
+private:
+	void	 create_instance();
+	void	 create_debug_messenger();
+	explicit operator VkInstance() const;
 
-	template <typename... Args> void set_renderer(Args &&...args) {
+public:
+	template <typename... Args>
+	void set_renderer(Args &&...args) {
 		_renderer = std::make_shared<Renderer>(std::forward<Args>(args)...);
 	}
+
 
 	[[nodiscard]] VkSurfaceKHR					get_surface() const;
 
@@ -32,14 +40,15 @@ public:
 	void										create_image_views();
 	void										create_pipeline(std::string vertex_shader, std::string fragment_shader);
 	void										create_framebuffers();
+	void										create_command_pool(const VkPhysicalDevice &physical);
+	void										create_command_buffer();
+	void										record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_idx) const;
+	void										create_sync_objects();
+
+	void										render() const;
+	void										waitIdle() const;
 
 private:
-	void					   create_instance();
-
-	void					   create_debug_messenger();
-
-	explicit				   operator VkInstance() const;
-
 	VkInstance				   _instance{};
 	VkDebugUtilsMessengerEXT   _debugMessenger{};
 	std::shared_ptr<Renderer>  _renderer;
@@ -52,6 +61,13 @@ private:
 
 	std::unique_ptr<Pipeline>  _pipeline{nullptr};
 	std::vector<VkFramebuffer> _framebuffers;
+
+	VkCommandPool			   _commandPool;
+	VkCommandBuffer			   _commandBuffer;
+
+	VkSemaphore				   _imageAvailableSemaphore;
+	VkSemaphore				   _renderFinishedSemaphore;
+	VkFence					   _inFlightFence;
 
 	VkDevice				   _device{};
 

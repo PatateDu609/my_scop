@@ -19,6 +19,12 @@ VulkanInstance::VulkanInstance() {
 
 
 VulkanInstance::~VulkanInstance() {
+	vkDestroyFence(_device, _inFlightFence, nullptr);
+	vkDestroySemaphore(_device, _renderFinishedSemaphore, nullptr);
+	vkDestroySemaphore(_device, _imageAvailableSemaphore, nullptr);
+
+	vkDestroyCommandPool(_device, _commandPool, nullptr);
+
 	for (const auto &framebuffer : _framebuffers) {
 		vkDestroyFramebuffer(_device, framebuffer, nullptr);
 	}
@@ -283,6 +289,106 @@ void VulkanInstance::create_framebuffers() {
 		std::cerr << "Created successfully " << oss.str() << "\n";
 	}
 	std::cerr << std::flush;
+}
+
+void VulkanInstance::create_command_pool(const VkPhysicalDevice &physical) {
+	const auto [graphicsQueueFamily, presentQueueFamily] = find_queue_families(physical, get_surface());
+
+	VkCommandPoolCreateInfo createInfo{};
+	createInfo.sType			= VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	createInfo.queueFamilyIndex = *graphicsQueueFamily;
+	createInfo.flags			= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+	if (vkCreateCommandPool(_device, &createInfo, nullptr, &_commandPool) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create command pool for current device");
+	}
+	std::cerr << "Created successfully command pool for current device" << std::endl;
+}
+
+void VulkanInstance::create_command_buffer() {
+	VkCommandBufferAllocateInfo allocateInfo{};
+	allocateInfo.sType				= VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocateInfo.commandPool		= _commandPool;
+	allocateInfo.level				= VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocateInfo.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(_device, &allocateInfo, &_commandBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't allocate command buffer for current device");
+	}
+	std::cerr << "Created successfully command buffer for current device" << std::endl;
+}
+
+void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer, const uint32_t image_idx) const {
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType			   = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags			   = 0;
+	beginInfo.pInheritanceInfo = nullptr;
+
+	if (vkBeginCommandBuffer(command_buffer, &beginInfo) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't begin command buffer");
+	}
+
+	constexpr VkClearValue clearValue{.color = {.float32 = {0.0F, 0.0F, 0.0F, 1.0F}}};
+	VkRenderPassBeginInfo  renderPassInfo{};
+	renderPassInfo.sType			 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass		 = _pipeline->renderPass;
+	renderPassInfo.framebuffer		 = _framebuffers[image_idx];
+	renderPassInfo.renderArea.offset = {0, 0};
+	renderPassInfo.renderArea.extent = _swapchainExtent;
+	renderPassInfo.clearValueCount	 = 1;
+	renderPassInfo.pClearValues		 = &clearValue;
+
+	vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->pipeline);
+
+	VkViewport viewport{};
+	viewport.x		  = 0.0F;
+	viewport.y		  = 0.0F;
+	viewport.width	  = static_cast<float>(_swapchainExtent.width);
+	viewport.height	  = static_cast<float>(_swapchainExtent.height);
+	viewport.minDepth = 0.0F;
+	viewport.maxDepth = 1.0F;
+	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+	VkRect2D scissor{};
+	scissor.offset = {0, 0};
+	scissor.extent = _swapchainExtent;
+	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+	vkCmdDraw(command_buffer, 3, 1, 0, 0);
+
+	vkCmdEndRenderPass(command_buffer);
+
+	if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't record command buffer");
+	}
+}
+
+void VulkanInstance::create_sync_objects() {
+	VkSemaphoreCreateInfo semaphoreCreateInfo{};
+	semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	VkFenceCreateInfo fenceCreateInfo{};
+	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	if (vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_imageAvailableSemaphore) != VK_SUCCESS ||
+		vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_renderFinishedSemaphore) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't semaphore for device");
+	}
+	if (vkCreateFence(_device, &fenceCreateInfo, nullptr, &_inFlightFence)) {
+		throw std::runtime_error("couldn't fence for device");
+	}
+
+	std::cerr << "Created successfully all fences and semaphores needed" << std::endl;
+}
+
+void VulkanInstance::render() const {
+	_renderer->render();
+}
+
+void VulkanInstance::waitIdle() const {
+	vkDeviceWaitIdle(_device);
 }
 
 
