@@ -14,10 +14,12 @@ namespace graphics {
 
 VulkanInstance::VulkanInstance() {
 	_vertices = {
-		VertexData{.position = maths::Vec2{0.0f, -0.5f}, .color = maths::Vec3{1.0f, 1.0f, 1.0f}},
-		VertexData{.position = maths::Vec2{0.5f, 0.5f}, .color = maths::Vec3{0.0f, 1.0f, 0.0f}},
-		VertexData{.position = maths::Vec2{-0.5f, 0.5f}, .color = maths::Vec3{0.0f, 0.0f, 1.0f}},
+		VertexData{.position = maths::Vec2{-0.5f, -0.5f}, .color = maths::Vec3{1.0f, 0.0f, 0.0f}},
+		VertexData{.position = maths::Vec2{0.5f, -0.5f}, .color = maths::Vec3{0.0f, 1.0f, 0.0f}},
+		VertexData{.position = maths::Vec2{0.5f, 0.5f}, .color = maths::Vec3{0.0f, 0.0f, 1.0f}},
+		VertexData{.position = maths::Vec2{-0.5f, 0.5f}, .color = maths::Vec3{1.0f, 1.0f, 1.0f}},
 	};
+	_indices = {0, 1, 2, 2, 3, 0};
 
 	create_instance();
 	create_debug_messenger();
@@ -31,11 +33,15 @@ VulkanInstance::~VulkanInstance() {
 		vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
 	}
 
+	vkDestroyCommandPool(_device, _shortLivedCommandPool, nullptr);
 	vkDestroyCommandPool(_device, _commandPool, nullptr);
 
 	cleanup_swapchain();
 	vkDestroyBuffer(_device, _vertexBuffer, nullptr);
 	vkFreeMemory(_device, _vertexBufferMemory, nullptr);
+
+	vkDestroyBuffer(_device, _indexBuffer, nullptr);
+	vkFreeMemory(_device, _indexBufferMemory, nullptr);
 
 	_pipeline.reset();
 	vkDestroyDevice(_device, nullptr);
@@ -344,6 +350,20 @@ void VulkanInstance::create_command_pool(const VkPhysicalDevice &physical) {
 	std::cerr << "Created successfully command pool for current device" << std::endl;
 }
 
+void VulkanInstance::create_short_lived_command_pool(const VkPhysicalDevice &physical) {
+	const auto [graphicsQueueFamily, presentQueueFamily] = find_queue_families(physical, get_surface());
+
+	VkCommandPoolCreateInfo createInfo{};
+	createInfo.sType			= VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	createInfo.queueFamilyIndex = *graphicsQueueFamily;
+	createInfo.flags			= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+
+	if (vkCreateCommandPool(_device, &createInfo, nullptr, &_shortLivedCommandPool) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create short lived command pool for current device");
+	}
+	std::cerr << "Created successfully short lived command pool for current device" << std::endl;
+}
+
 void VulkanInstance::create_command_buffers() {
 	_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -399,8 +419,8 @@ void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer,
 	const std::array								   buffers{_vertexBuffer};
 	constexpr std::array<VkDeviceSize, buffers.size()> offsets{0};
 	vkCmdBindVertexBuffers(command_buffer, 0, buffers.size(), buffers.data(), offsets.data());
-
-	vkCmdDraw(command_buffer, _vertices.size(), 1, 0, 0);
+	vkCmdBindIndexBuffer(command_buffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdDrawIndexed(command_buffer, _indices.size(), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(command_buffer);
 
@@ -435,39 +455,66 @@ void VulkanInstance::create_sync_objects() {
 }
 
 void VulkanInstance::create_vertex_buffer(const VkPhysicalDevice &physical) {
-	VkBufferCreateInfo createInfo{};
-	createInfo.sType	   = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	createInfo.size		   = sizeof(_vertices[0]) * _vertices.size();
-	createInfo.usage	   = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	const size_t   size = sizeof(_vertices[0]) * _vertices.size();
 
-	if (vkCreateBuffer(_device, &createInfo, nullptr, &_vertexBuffer) != VK_SUCCESS) {
-		throw std::runtime_error("couldn't create vertex buffer for current device");
+	VkBuffer	   stagingBuffer;
+	VkDeviceMemory stagingMemory;
+	{
+		constexpr VkBufferUsageFlags	usage	   = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		constexpr VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+		std::tie(stagingBuffer, stagingMemory)	   = create_buffer(physical, size, usage, properties);
+		std::cerr << "Created successfully staging buffer and allocated its memory (used for vertex buffer)" << std::endl;
+
+		void *data;
+		vkMapMemory(_device, stagingMemory, 0, size, 0, &data);
+		memcpy(data, _vertices.data(), size);
+		vkUnmapMemory(_device, stagingMemory);
 	}
-	std::cerr << "Created successfully vertex buffer" << std::endl;
-
-	VkMemoryRequirements memReqs{};
-	vkGetBufferMemoryRequirements(_device, _vertexBuffer, &memReqs);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType			  = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize  = memReqs.size;
-	allocInfo.memoryTypeIndex = find_memory_type(physical, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	if (vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS) {
-		throw std::runtime_error("couldn't allocate memory for vertex buffer");
-	}
-	vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0);
-	std::cerr << "Allocated successfully memory for vertex buffer" << std::endl;
 
 	{
-		void *data;
-		vkMapMemory(_device, _vertexBufferMemory, 0, createInfo.size, 0, &data);
-		memcpy(data, _vertices.data(), createInfo.size);
-		vkUnmapMemory(_device, _vertexBufferMemory);
+		constexpr VkBufferUsageFlags	usage		 = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		constexpr VkMemoryPropertyFlags properties	 = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		std::tie(_vertexBuffer, _vertexBufferMemory) = create_buffer(physical, size, usage, properties);
+		std::cerr << "Created successfully vertex buffer and allocated its memory" << std::endl;
 	}
+
+	copy_buffer(stagingBuffer, _vertexBuffer, size);
+
+	vkDestroyBuffer(_device, stagingBuffer, nullptr);
+	vkFreeMemory(_device, stagingMemory, nullptr);
 }
 
+void VulkanInstance::create_index_buffer(const VkPhysicalDevice &physical) {
+	const size_t   size = sizeof(_indices[0]) * _indices.size();
+
+	VkBuffer	   stagingBuffer;
+	VkDeviceMemory stagingMemory;
+	{
+		constexpr VkBufferUsageFlags	usage	   = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		constexpr VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+		std::tie(stagingBuffer, stagingMemory)	   = create_buffer(physical, size, usage, properties);
+		std::cerr << "Created successfully staging buffer and allocated its memory (used for index buffer)" << std::endl;
+
+		void *data;
+		vkMapMemory(_device, stagingMemory, 0, size, 0, &data);
+		memcpy(data, _indices.data(), size);
+		vkUnmapMemory(_device, stagingMemory);
+	}
+
+	{
+		constexpr VkBufferUsageFlags	usage	   = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		constexpr VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		std::tie(_indexBuffer, _indexBufferMemory) = create_buffer(physical, size, usage, properties);
+		std::cerr << "Created successfully index buffer and allocated its memory" << std::endl;
+	}
+
+	copy_buffer(stagingBuffer, _indexBuffer, size);
+
+	vkDestroyBuffer(_device, stagingBuffer, nullptr);
+	vkFreeMemory(_device, stagingMemory, nullptr);
+}
 
 void VulkanInstance::render(const VkPhysicalDevice physical, const uint32_t frame_idx) const {
 	_renderer->render(physical, frame_idx);
@@ -481,6 +528,38 @@ void VulkanInstance::mark_framebuffer_resized() {
 	_framebufferResized = true;
 }
 
+std::pair<VkBuffer, VkDeviceMemory> VulkanInstance::create_buffer(const VkPhysicalDevice &physical, const VkDeviceSize size, const VkBufferUsageFlags usage,
+																  const VkMemoryPropertyFlags properties) const {
+	VkBuffer		   buffer;
+	VkDeviceMemory	   mem;
+
+	VkBufferCreateInfo createInfo{};
+	createInfo.sType	   = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.size		   = size;
+	createInfo.usage	   = usage;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(_device, &createInfo, nullptr, &buffer) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create vertex buffer for current device");
+	}
+
+	VkMemoryRequirements memReqs{};
+	vkGetBufferMemoryRequirements(_device, buffer, &memReqs);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType			  = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize  = memReqs.size;
+	allocInfo.memoryTypeIndex = find_memory_type(physical, memReqs.memoryTypeBits, properties);
+
+	if (vkAllocateMemory(_device, &allocInfo, nullptr, &mem) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't allocate memory for vertex buffer");
+	}
+	vkBindBufferMemory(_device, buffer, mem, 0);
+
+	return {buffer, mem};
+}
+
+
 uint32_t VulkanInstance::find_memory_type(const VkPhysicalDevice &physical, const uint32_t type_filter, const VkMemoryPropertyFlags properties) {
 	VkPhysicalDeviceMemoryProperties memProps;
 	vkGetPhysicalDeviceMemoryProperties(physical, &memProps);
@@ -493,5 +572,42 @@ uint32_t VulkanInstance::find_memory_type(const VkPhysicalDevice &physical, cons
 
 	throw std::runtime_error("couldn't find suitable memory type");
 }
+
+void VulkanInstance::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const {
+	VkCommandBufferAllocateInfo allocateInfo{};
+	allocateInfo.sType				= VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocateInfo.level				= VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocateInfo.commandPool		= _shortLivedCommandPool;
+	allocateInfo.commandBufferCount = 1;
+
+	VkCommandBuffer cmdBuffer;
+	if (vkAllocateCommandBuffers(_device, &allocateInfo, &cmdBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't allocate new command buffer for current device");
+	}
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+
+	VkBufferCopy cpy{};
+	cpy.size	  = size;
+	cpy.srcOffset = 0;
+	cpy.dstOffset = 0;
+	vkCmdCopyBuffer(cmdBuffer, src, dst, 1, &cpy);
+
+	vkEndCommandBuffer(cmdBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType			  = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers	  = &cmdBuffer;
+
+	vkQueueSubmit(_renderer->_graphics, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(_renderer->_graphics);
+
+	vkFreeCommandBuffers(_device, _shortLivedCommandPool, 1, &cmdBuffer);
+}
+
 
 } // namespace graphics

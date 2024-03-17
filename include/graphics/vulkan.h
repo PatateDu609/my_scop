@@ -5,8 +5,6 @@
 #include "renderer.h"
 #include "utils.h"
 
-#include <string>
-#include <utility>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -41,10 +39,12 @@ public:
 	void										create_pipeline(std::string vertex_shader, std::string fragment_shader);
 	void										create_framebuffers();
 	void										create_command_pool(const VkPhysicalDevice &physical);
+	void										create_short_lived_command_pool(const VkPhysicalDevice &physical);
 	void										create_command_buffers();
 	void										record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_idx) const;
 	void										create_sync_objects();
 	void										create_vertex_buffer(const VkPhysicalDevice &physical);
+	void										create_index_buffer(const VkPhysicalDevice &physical);
 
 	void										render(VkPhysicalDevice physical, uint32_t frame_idx) const;
 	void										waitIdle() const;
@@ -54,34 +54,44 @@ public:
 	void										recreate_swapchain(VkPhysicalDevice physical);
 
 private:
-	static uint32_t				 find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
+	std::pair<VkBuffer, VkDeviceMemory> create_buffer(const VkPhysicalDevice &physical, VkDeviceSize size, VkBufferUsageFlags usage,
+													  VkMemoryPropertyFlags properties) const;
+	static uint32_t						find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
 
-	VkInstance					 _instance{};
-	VkDebugUtilsMessengerEXT	 _debugMessenger{};
-	std::shared_ptr<Renderer>	 _renderer;
+	void								copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
 
-	VkSwapchainKHR				 _swapchain{};
-	std::vector<VkImage>		 _swapchainImages;
-	std::vector<VkImageView>	 _swapchainImageViews;
-	VkExtent2D					 _swapchainExtent{};
-	VkFormat					 _swapchainFormat{};
+	VkInstance							_instance{};
+	VkDebugUtilsMessengerEXT			_debugMessenger{};
+	std::shared_ptr<Renderer>			_renderer;
 
-	std::unique_ptr<Pipeline>	 _pipeline{nullptr};
-	std::vector<VkFramebuffer>	 _framebuffers;
-	bool						 _framebufferResized{false};
+	VkSwapchainKHR						_swapchain{};
+	std::vector<VkImage>				_swapchainImages;
+	std::vector<VkImageView>			_swapchainImageViews;
+	VkExtent2D							_swapchainExtent{};
+	VkFormat							_swapchainFormat{};
 
-	VkCommandPool				 _commandPool{};
-	std::vector<VkCommandBuffer> _commandBuffers;
+	std::unique_ptr<Pipeline>			_pipeline{nullptr};
+	std::vector<VkFramebuffer>			_framebuffers;
+	bool								_framebufferResized{false};
 
-	std::vector<VkSemaphore>	 _imageAvailableSemaphores;
-	std::vector<VkSemaphore>	 _renderFinishedSemaphores;
-	std::vector<VkFence>		 _inFlightFences;
+	VkCommandPool						_commandPool{};
+	std::vector<VkCommandBuffer>		_commandBuffers;
 
-	VkDevice					 _device{};
+	VkCommandPool						_shortLivedCommandPool{};
 
-	std::vector<VertexData>		 _vertices{};
-	VkBuffer					 _vertexBuffer{};
-	VkDeviceMemory				 _vertexBufferMemory{};
+	std::vector<VkSemaphore>			_imageAvailableSemaphores;
+	std::vector<VkSemaphore>			_renderFinishedSemaphores;
+	std::vector<VkFence>				_inFlightFences;
+
+	VkDevice							_device{};
+
+	std::vector<VertexData>				_vertices{};
+	VkBuffer							_vertexBuffer{};
+	VkDeviceMemory						_vertexBufferMemory{};
+
+	std::vector<uint16_t>				_indices;
+	VkBuffer							_indexBuffer{};
+	VkDeviceMemory						_indexBufferMemory{};
 
 	friend class Renderer;
 };

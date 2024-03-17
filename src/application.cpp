@@ -55,7 +55,9 @@ void Application::init() {
 	_instance->create_pipeline("shaders/vertex.glsl", "shaders/frag.glsl");
 	_instance->create_framebuffers();
 	_instance->create_command_pool(_physicalDevice);
+	_instance->create_short_lived_command_pool(_physicalDevice);
 	_instance->create_vertex_buffer(_physicalDevice);
+	_instance->create_index_buffer(_physicalDevice);
 	_instance->create_command_buffers();
 	_instance->create_sync_objects();
 }
