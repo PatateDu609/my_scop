@@ -9,7 +9,7 @@
 #include <map>
 #include <sstream>
 
-static void key_input(GLFWwindow *window, const int key, const int scancode, const int action, const int mods) {
+static void key_input(GLFWwindow *window, const int key, const int /*scancode*/, const int action, const int /*mods*/) {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 	}
@@ -55,6 +55,7 @@ void Application::init() {
 	_instance->create_pipeline("shaders/vertex.glsl", "shaders/frag.glsl");
 	_instance->create_framebuffers();
 	_instance->create_command_pool(_physicalDevice);
+	_instance->create_vertex_buffer(_physicalDevice);
 	_instance->create_command_buffers();
 	_instance->create_sync_objects();
 }

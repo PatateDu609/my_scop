@@ -78,11 +78,14 @@ set(SRC_GRAPHICS
         include/graphics/shaders.h src/graphics/shaders.cpp
         src/graphics/pipeline.cpp include/graphics/pipeline.h)
 
+set(SRC_MATHS
+        src/maths/vec.cpp include/maths/vec.h)
+
 set(SRC_MAIN
         src/main.cpp
         include/application.h src/application.cpp)
 
-add_executable(${CMAKE_PROJECT_NAME} ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS})
+add_executable(${CMAKE_PROJECT_NAME} ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS} ${SRC_MATHS})
 target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -Wall -Wextra)
 
 if (${SCOP_DEBUG})
@@ -138,5 +141,5 @@ endif ()
 
 doxygen_add_docs(
         doxygen
-        ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS}
+        ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS} ${SRC_MATHS}
 )

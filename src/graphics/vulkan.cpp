@@ -13,6 +13,12 @@
 namespace graphics {
 
 VulkanInstance::VulkanInstance() {
+	_vertices = {
+		VertexData{.position = maths::Vec2{0.0f, -0.5f}, .color = maths::Vec3{1.0f, 1.0f, 1.0f}},
+		VertexData{.position = maths::Vec2{0.5f, 0.5f}, .color = maths::Vec3{0.0f, 1.0f, 0.0f}},
+		VertexData{.position = maths::Vec2{-0.5f, 0.5f}, .color = maths::Vec3{0.0f, 0.0f, 1.0f}},
+	};
+
 	create_instance();
 	create_debug_messenger();
 }
@@ -28,6 +34,8 @@ VulkanInstance::~VulkanInstance() {
 	vkDestroyCommandPool(_device, _commandPool, nullptr);
 
 	cleanup_swapchain();
+	vkDestroyBuffer(_device, _vertexBuffer, nullptr);
+	vkFreeMemory(_device, _vertexBufferMemory, nullptr);
 
 	_pipeline.reset();
 	vkDestroyDevice(_device, nullptr);
@@ -388,7 +396,11 @@ void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer,
 	scissor.extent = _swapchainExtent;
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-	vkCmdDraw(command_buffer, 3, 1, 0, 0);
+	const std::array								   buffers{_vertexBuffer};
+	constexpr std::array<VkDeviceSize, buffers.size()> offsets{0};
+	vkCmdBindVertexBuffers(command_buffer, 0, buffers.size(), buffers.data(), offsets.data());
+
+	vkCmdDraw(command_buffer, _vertices.size(), 1, 0, 0);
 
 	vkCmdEndRenderPass(command_buffer);
 
@@ -422,6 +434,41 @@ void VulkanInstance::create_sync_objects() {
 	std::cerr << "Created successfully all fences and semaphores needed" << std::endl;
 }
 
+void VulkanInstance::create_vertex_buffer(const VkPhysicalDevice &physical) {
+	VkBufferCreateInfo createInfo{};
+	createInfo.sType	   = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.size		   = sizeof(_vertices[0]) * _vertices.size();
+	createInfo.usage	   = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(_device, &createInfo, nullptr, &_vertexBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create vertex buffer for current device");
+	}
+	std::cerr << "Created successfully vertex buffer" << std::endl;
+
+	VkMemoryRequirements memReqs{};
+	vkGetBufferMemoryRequirements(_device, _vertexBuffer, &memReqs);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType			  = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize  = memReqs.size;
+	allocInfo.memoryTypeIndex = find_memory_type(physical, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	if (vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't allocate memory for vertex buffer");
+	}
+	vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0);
+	std::cerr << "Allocated successfully memory for vertex buffer" << std::endl;
+
+	{
+		void *data;
+		vkMapMemory(_device, _vertexBufferMemory, 0, createInfo.size, 0, &data);
+		memcpy(data, _vertices.data(), createInfo.size);
+		vkUnmapMemory(_device, _vertexBufferMemory);
+	}
+}
+
+
 void VulkanInstance::render(const VkPhysicalDevice physical, const uint32_t frame_idx) const {
 	_renderer->render(physical, frame_idx);
 }
@@ -434,5 +481,17 @@ void VulkanInstance::mark_framebuffer_resized() {
 	_framebufferResized = true;
 }
 
+uint32_t VulkanInstance::find_memory_type(const VkPhysicalDevice &physical, const uint32_t type_filter, const VkMemoryPropertyFlags properties) {
+	VkPhysicalDeviceMemoryProperties memProps;
+	vkGetPhysicalDeviceMemoryProperties(physical, &memProps);
+
+	for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
+		if ((type_filter & (1 << i)) && (memProps.memoryTypes[i].propertyFlags & properties) == properties) {
+			return i;
+		}
+	}
+
+	throw std::runtime_error("couldn't find suitable memory type");
+}
 
 } // namespace graphics

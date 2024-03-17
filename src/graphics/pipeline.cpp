@@ -1,5 +1,7 @@
 #include "graphics/pipeline.h"
 
+#include "graphics/utils.h"
+
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -122,11 +124,11 @@ void Pipeline::setup_render_pass(const VkFormat &format) {
 	subpass.pColorAttachments	 = &colorAttachmentRef;
 
 	VkSubpassDependency subpassDependency{};
-	subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	subpassDependency.dstSubpass = 0;
-	subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.srcSubpass	= VK_SUBPASS_EXTERNAL;
+	subpassDependency.dstSubpass	= 0;
+	subpassDependency.srcStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	subpassDependency.srcAccessMask = 0;
-	subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.dstStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
 	VkRenderPassCreateInfo renderPassCreateInfo{};
@@ -136,7 +138,7 @@ void Pipeline::setup_render_pass(const VkFormat &format) {
 	renderPassCreateInfo.subpassCount	 = 1;
 	renderPassCreateInfo.pSubpasses		 = &subpass;
 	renderPassCreateInfo.dependencyCount = 1;
-	renderPassCreateInfo.pDependencies = &subpassDependency;
+	renderPassCreateInfo.pDependencies	 = &subpassDependency;
 
 	if (vkCreateRenderPass(device, &renderPassCreateInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("couldn't create render pass for current device");
@@ -148,16 +150,19 @@ void Pipeline::setup(const VkExtent2D &extent) {
 	static std::vector				 dynamicStates{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
 	VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
-	dynamicStateCreateInfo.sType			 = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicStateCreateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-	dynamicStateCreateInfo.pDynamicStates	 = dynamicStates.data();
+	dynamicStateCreateInfo.sType					 = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicStateCreateInfo.dynamicStateCount		 = static_cast<uint32_t>(dynamicStates.size());
+	dynamicStateCreateInfo.pDynamicStates			 = dynamicStates.data();
+
+	const auto							&bindingDesc = VertexData::getBindingDesc();
+	const auto							&attrsDescs	 = VertexData::getAttributeDescs();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo{};
 	vertexInputCreateInfo.sType							  = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputCreateInfo.vertexBindingDescriptionCount	  = 0;
-	vertexInputCreateInfo.pVertexBindingDescriptions	  = nullptr; // Optional
-	vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputCreateInfo.pVertexAttributeDescriptions	  = nullptr; // Optional
+	vertexInputCreateInfo.vertexBindingDescriptionCount	  = 1;
+	vertexInputCreateInfo.pVertexBindingDescriptions	  = &bindingDesc;
+	vertexInputCreateInfo.vertexAttributeDescriptionCount = attrsDescs.size();
+	vertexInputCreateInfo.pVertexAttributeDescriptions	  = attrsDescs.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo{};
 	inputAssemblyCreateInfo.sType				   = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

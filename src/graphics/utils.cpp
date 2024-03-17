@@ -6,20 +6,22 @@
 #include <set>
 #include <vulkan/vulkan.h>
 
-std::vector<char const *> const graphics::VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
+namespace graphics {
 
-std::vector<char const *> const graphics::DEVICE_EXTENSIONS = {
+const std::vector<const char *> VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
+
+const std::vector<const char *> DEVICE_EXTENSIONS = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 #if defined __APPLE__ || (defined VK_KHR_portability_enumeration && VK_KHR_portability_enumeration == 1)
 	"VK_KHR_portability_subset",
 #endif
 };
 
-std::vector<char const *> graphics::get_required_extensions() {
+std::vector<const char *> get_required_extensions() {
 	uint32_t				  glfwExtensionCount = 0;
-	char const				**glfwExtensions	 = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+	const char				**glfwExtensions	 = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-	std::vector<char const *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+	std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
 	if constexpr (ENABLE_VALIDATION_LAYERS) // NOLINT: Simplify
 		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -33,16 +35,16 @@ std::vector<char const *> graphics::get_required_extensions() {
 }
 
 
-bool graphics::check_validation_layer_support() {
+bool check_validation_layer_support() {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
 	std::vector<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-	for (auto const &layerName : VALIDATION_LAYERS) {
+	for (const auto &layerName : VALIDATION_LAYERS) {
 		bool found = false;
-		for (auto const &layer : availableLayers) {
+		for (const auto &layer : availableLayers) {
 			if (std::strcmp(layer.layerName, layerName) == 0) {
 				found = true;
 				break;
@@ -56,7 +58,7 @@ bool graphics::check_validation_layer_support() {
 }
 
 
-bool graphics::check_device_extension_support(VkPhysicalDevice physicalDevice) {
+bool check_device_extension_support(const VkPhysicalDevice physicalDevice) {
 	uint32_t extensionCount;
 	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
 
@@ -64,8 +66,36 @@ bool graphics::check_device_extension_support(VkPhysicalDevice physicalDevice) {
 	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
 	std::set<std::string> requiredExtensions(DEVICE_EXTENSIONS.begin(), DEVICE_EXTENSIONS.end());
-	for (auto const &extension : availableExtensions)
+	for (const auto &extension : availableExtensions)
 		requiredExtensions.erase(extension.extensionName);
 
 	return requiredExtensions.empty();
 }
+
+VkVertexInputBindingDescription VertexData::getBindingDesc() {
+	VkVertexInputBindingDescription res{};
+	res.binding	  = 0;
+	res.stride	  = sizeof(VertexData);
+	res.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	return res;
+}
+
+std::array<VkVertexInputAttributeDescription, 2> VertexData::getAttributeDescs() {
+	std::array<VkVertexInputAttributeDescription, 2> attrs{};
+
+	attrs[0].binding  = 0;
+	attrs[0].location = 0;
+	attrs[0].format	  = VK_FORMAT_R32G32_SFLOAT;
+	attrs[0].offset	  = offsetof(VertexData, position);
+
+	attrs[1].binding  = 0;
+	attrs[1].location = 1;
+	attrs[1].format	  = VK_FORMAT_R32G32B32_SFLOAT;
+	attrs[1].offset	  = offsetof(VertexData, color);
+
+	return attrs;
+}
+
+
+} // namespace graphics
