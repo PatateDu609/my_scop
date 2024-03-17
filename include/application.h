@@ -29,6 +29,7 @@ private:
 
 public:
 	int run() const;
+	void mark_framebuffer_resized() const;
 
 private:
 	void	 select_physical_device();

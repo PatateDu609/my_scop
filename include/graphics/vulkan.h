@@ -30,7 +30,6 @@ public:
 		_renderer = std::make_shared<Renderer>(std::forward<Args>(args)...);
 	}
 
-
 	[[nodiscard]] VkSurfaceKHR					get_surface() const;
 
 	[[nodiscard]] std::vector<VkPhysicalDevice> enumerate_physical_devices() const;
@@ -45,8 +44,12 @@ public:
 	void										record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_idx) const;
 	void										create_sync_objects();
 
-	void										render(uint32_t frame_idx) const;
+	void										render(VkPhysicalDevice physical, uint32_t frame_idx) const;
 	void										waitIdle() const;
+
+	void										mark_framebuffer_resized();
+	void										cleanup_swapchain();
+	void										recreate_swapchain(VkPhysicalDevice physical);
 
 private:
 	VkInstance					 _instance{};
@@ -61,6 +64,7 @@ private:
 
 	std::unique_ptr<Pipeline>	 _pipeline{nullptr};
 	std::vector<VkFramebuffer>	 _framebuffers;
+	bool						 _framebufferResized{false};
 
 	VkCommandPool				 _commandPool;
 	std::vector<VkCommandBuffer> _commandBuffers;

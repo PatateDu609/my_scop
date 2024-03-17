@@ -15,6 +15,11 @@ static void key_input(GLFWwindow *window, const int key, const int scancode, con
 	}
 }
 
+static void framebufferResized(GLFWwindow *window, const int, const int) {
+	const auto app = static_cast<Application *>(glfwGetWindowUserPointer(window));
+	app->mark_framebuffer_resized();
+}
+
 Application::Application(const int ac, char **av) : _window(nullptr), _physicalDevice(VK_NULL_HANDLE) {
 	if (ac != 2) {
 		std::cerr << "usage: ./scop <scene file>" << std::endl;
@@ -65,19 +70,20 @@ void Application::init_window() {
 
 	glfwSetWindowUserPointer(_window.get(), this);
 	glfwSetKeyCallback(_window.get(), key_input);
+	glfwSetFramebufferSizeCallback(_window.get(), framebufferResized);
 }
 
 
 int Application::run() const {
-	uint64_t frame_cnt = 0;
-	uint32_t frame_idx = 0;
-	double time_since_last_update = glfwGetTime();
+	uint64_t		   frame_cnt			  = 0;
+	uint32_t		   frame_idx			  = 0;
+	double			   time_since_last_update = glfwGetTime();
 
 	std::ostringstream oss;
 
 	while (!glfwWindowShouldClose(_window.get())) {
 		glfwPollEvents();
-		_instance->render(frame_idx);
+		_instance->render(_physicalDevice, frame_idx);
 		frame_cnt++;
 		frame_idx = (frame_idx + 1) % MAX_FRAMES_IN_FLIGHT;
 
@@ -87,7 +93,7 @@ int Application::run() const {
 
 			glfwSetWindowTitle(_window.get(), oss.str().c_str());
 			time_since_last_update = glfwGetTime();
-			frame_cnt = 0;
+			frame_cnt			   = 0;
 		}
 	}
 
@@ -96,6 +102,9 @@ int Application::run() const {
 	return 0;
 }
 
+void Application::mark_framebuffer_resized() const {
+	_instance->mark_framebuffer_resized();
+}
 
 void Application::select_physical_device() {
 	auto													  physicalDevices = _instance->enumerate_physical_devices();

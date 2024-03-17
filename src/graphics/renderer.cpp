@@ -43,7 +43,7 @@ void Renderer::acquire_queues(const QueueFamilyIndices &indices) {
 		vkGetDeviceQueue(_instance->_device, indices.presentFamily.value(), 0, &_present);
 }
 
-void Renderer::render(const uint32_t frame_idx) {
+void Renderer::render(const VkPhysicalDevice physical, const uint32_t frame_idx) const {
 	const VkDevice		  &device				   = _instance->_device;
 	const VkCommandBuffer &commandBuffer		   = _instance->_commandBuffers[frame_idx];
 	const VkFence		  &inFlightFence		   = _instance->_inFlightFences[frame_idx];
@@ -51,11 +51,23 @@ void Renderer::render(const uint32_t frame_idx) {
 	const VkSemaphore	  &renderFinishedSemaphore = _instance->_renderFinishedSemaphores[frame_idx];
 
 	vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+
+	uint32_t	   img_idx;
+	{
+		// ReSharper disable once CppTooWideScopeInitStatement
+		const VkResult res = vkAcquireNextImageKHR(device, _instance->_swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &img_idx);
+
+		if (res == VK_ERROR_OUT_OF_DATE_KHR) {
+			std::cerr << "SWAPCHAIN INVALID, RECREATING IT" << std::endl;
+			_instance->recreate_swapchain(physical);
+			return;
+		}
+		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
+			throw std::runtime_error("couldn't acquire a new image from swapchain");
+		}
+	}
+
 	vkResetFences(device, 1, &inFlightFence);
-
-	uint32_t img_idx;
-	vkAcquireNextImageKHR(device, _instance->_swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &img_idx);
-
 	vkResetCommandBuffer(commandBuffer, 0);
 	_instance->record_command_buffer(commandBuffer, img_idx);
 
@@ -87,7 +99,20 @@ void Renderer::render(const uint32_t frame_idx) {
 	presentInfo.pImageIndices	   = &img_idx;
 	presentInfo.pResults		   = nullptr;
 
-	vkQueuePresentKHR(_present, &presentInfo);
+
+	{
+		// ReSharper disable once CppTooWideScopeInitStatement
+		const VkResult res = vkQueuePresentKHR(_present, &presentInfo);
+
+		if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR || _instance->_framebufferResized) {
+			std::cerr << "SWAPCHAIN INVALID, RECREATING IT" << std::endl;
+			_instance->_framebufferResized = false;
+			_instance->recreate_swapchain(physical);
+		}
+		else if (res != VK_SUCCESS) {
+			throw std::runtime_error("couldn't present the resultant image to screen");
+		}
+	}
 }
 
 

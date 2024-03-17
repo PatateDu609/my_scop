@@ -27,17 +27,9 @@ VulkanInstance::~VulkanInstance() {
 
 	vkDestroyCommandPool(_device, _commandPool, nullptr);
 
-	for (const auto &framebuffer : _framebuffers) {
-		vkDestroyFramebuffer(_device, framebuffer, nullptr);
-	}
+	cleanup_swapchain();
 
 	_pipeline.reset();
-
-	for (const auto &imageView : _swapchainImageViews) {
-		vkDestroyImageView(_device, imageView, nullptr);
-	}
-
-	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 	vkDestroyDevice(_device, nullptr);
 
 	if constexpr (ENABLE_VALIDATION_LAYERS) // NOLINT: Simplify
@@ -221,6 +213,43 @@ void VulkanInstance::create_swapchain(const VkPhysicalDevice physical) {
 	std::cerr << "Successfully created swapchain and retrieved associated images" << std::endl;
 }
 
+void VulkanInstance::cleanup_swapchain() {
+	for (const auto &framebuffer : _framebuffers) {
+		vkDestroyFramebuffer(_device, framebuffer, nullptr);
+	}
+	_framebuffers.clear();
+
+	for (const auto &imageView : _swapchainImageViews) {
+		vkDestroyImageView(_device, imageView, nullptr);
+	}
+
+	_swapchainImageViews.clear();
+
+	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+	_swapchainImages.clear();
+	_swapchain = VK_NULL_HANDLE;
+}
+
+
+void VulkanInstance::recreate_swapchain(const VkPhysicalDevice physical) {
+	{
+		int w, h;
+		do {
+			glfwGetFramebufferSize(_renderer->_window, &w, &h);
+			glfwWaitEvents();
+		} while (w == 0 || h == 0);
+	}
+
+	vkDeviceWaitIdle(_device);
+
+	cleanup_swapchain();
+
+	create_swapchain(physical);
+	create_image_views();
+	create_framebuffers();
+}
+
+
 void VulkanInstance::create_image_views() {
 	_swapchainImageViews.resize(_swapchainImages.size());
 
@@ -393,12 +422,16 @@ void VulkanInstance::create_sync_objects() {
 	std::cerr << "Created successfully all fences and semaphores needed" << std::endl;
 }
 
-void VulkanInstance::render(const uint32_t frame_idx) const {
-	_renderer->render(frame_idx);
+void VulkanInstance::render(const VkPhysicalDevice physical, const uint32_t frame_idx) const {
+	_renderer->render(physical, frame_idx);
 }
 
 void VulkanInstance::waitIdle() const {
 	vkDeviceWaitIdle(_device);
+}
+
+void VulkanInstance::mark_framebuffer_resized() {
+	_framebufferResized = true;
 }
 
 
