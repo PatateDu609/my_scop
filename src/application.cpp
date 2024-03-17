@@ -50,7 +50,7 @@ void Application::init() {
 	_instance->create_pipeline("shaders/vertex.glsl", "shaders/frag.glsl");
 	_instance->create_framebuffers();
 	_instance->create_command_pool(_physicalDevice);
-	_instance->create_command_buffer();
+	_instance->create_command_buffers();
 	_instance->create_sync_objects();
 }
 
@@ -68,16 +68,18 @@ void Application::init_window() {
 }
 
 
-int Application::run() {
+int Application::run() const {
 	uint64_t frame_cnt = 0;
+	uint32_t frame_idx = 0;
 	double time_since_last_update = glfwGetTime();
 
 	std::ostringstream oss;
 
 	while (!glfwWindowShouldClose(_window.get())) {
 		glfwPollEvents();
-		_instance->render();
+		_instance->render(frame_idx);
 		frame_cnt++;
+		frame_idx = (frame_idx + 1) % MAX_FRAMES_IN_FLIGHT;
 
 		if (glfwGetTime() - time_since_last_update >= 1.0) {
 			oss.str("");

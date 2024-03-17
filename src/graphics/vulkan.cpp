@@ -19,9 +19,11 @@ VulkanInstance::VulkanInstance() {
 
 
 VulkanInstance::~VulkanInstance() {
-	vkDestroyFence(_device, _inFlightFence, nullptr);
-	vkDestroySemaphore(_device, _renderFinishedSemaphore, nullptr);
-	vkDestroySemaphore(_device, _imageAvailableSemaphore, nullptr);
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		vkDestroyFence(_device, _inFlightFences[i], nullptr);
+		vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
+		vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
+	}
 
 	vkDestroyCommandPool(_device, _commandPool, nullptr);
 
@@ -305,14 +307,16 @@ void VulkanInstance::create_command_pool(const VkPhysicalDevice &physical) {
 	std::cerr << "Created successfully command pool for current device" << std::endl;
 }
 
-void VulkanInstance::create_command_buffer() {
+void VulkanInstance::create_command_buffers() {
+	_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
 	VkCommandBufferAllocateInfo allocateInfo{};
 	allocateInfo.sType				= VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocateInfo.commandPool		= _commandPool;
 	allocateInfo.level				= VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocateInfo.commandBufferCount = 1;
+	allocateInfo.commandBufferCount = static_cast<uint32_t>(_commandBuffers.size());
 
-	if (vkAllocateCommandBuffers(_device, &allocateInfo, &_commandBuffer) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(_device, &allocateInfo, _commandBuffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("couldn't allocate command buffer for current device");
 	}
 	std::cerr << "Created successfully command buffer for current device" << std::endl;
@@ -372,19 +376,25 @@ void VulkanInstance::create_sync_objects() {
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	if (vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_imageAvailableSemaphore) != VK_SUCCESS ||
-		vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_renderFinishedSemaphore) != VK_SUCCESS) {
-		throw std::runtime_error("couldn't semaphore for device");
-	}
-	if (vkCreateFence(_device, &fenceCreateInfo, nullptr, &_inFlightFence)) {
-		throw std::runtime_error("couldn't fence for device");
+	_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		if (vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_imageAvailableSemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_renderFinishedSemaphores[i]) != VK_SUCCESS) {
+			throw std::runtime_error("couldn't create semaphore[" + std::to_string(i) + "] for device");
+		}
+		if (vkCreateFence(_device, &fenceCreateInfo, nullptr, &_inFlightFences[i])) {
+			throw std::runtime_error("couldn't create fence[" + std::to_string(i) + "] for device");
+		}
 	}
 
 	std::cerr << "Created successfully all fences and semaphores needed" << std::endl;
 }
 
-void VulkanInstance::render() const {
-	_renderer->render();
+void VulkanInstance::render(const uint32_t frame_idx) const {
+	_renderer->render(frame_idx);
 }
 
 void VulkanInstance::waitIdle() const {

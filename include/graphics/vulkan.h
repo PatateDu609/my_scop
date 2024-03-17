@@ -41,35 +41,35 @@ public:
 	void										create_pipeline(std::string vertex_shader, std::string fragment_shader);
 	void										create_framebuffers();
 	void										create_command_pool(const VkPhysicalDevice &physical);
-	void										create_command_buffer();
+	void										create_command_buffers();
 	void										record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_idx) const;
 	void										create_sync_objects();
 
-	void										render() const;
+	void										render(uint32_t frame_idx) const;
 	void										waitIdle() const;
 
 private:
-	VkInstance				   _instance{};
-	VkDebugUtilsMessengerEXT   _debugMessenger{};
-	std::shared_ptr<Renderer>  _renderer;
+	VkInstance					 _instance{};
+	VkDebugUtilsMessengerEXT	 _debugMessenger{};
+	std::shared_ptr<Renderer>	 _renderer;
 
-	VkSwapchainKHR			   _swapchain{};
-	std::vector<VkImage>	   _swapchainImages;
-	std::vector<VkImageView>   _swapchainImageViews;
-	VkExtent2D				   _swapchainExtent{};
-	VkFormat				   _swapchainFormat{};
+	VkSwapchainKHR				 _swapchain{};
+	std::vector<VkImage>		 _swapchainImages;
+	std::vector<VkImageView>	 _swapchainImageViews;
+	VkExtent2D					 _swapchainExtent{};
+	VkFormat					 _swapchainFormat{};
 
-	std::unique_ptr<Pipeline>  _pipeline{nullptr};
-	std::vector<VkFramebuffer> _framebuffers;
+	std::unique_ptr<Pipeline>	 _pipeline{nullptr};
+	std::vector<VkFramebuffer>	 _framebuffers;
 
-	VkCommandPool			   _commandPool;
-	VkCommandBuffer			   _commandBuffer;
+	VkCommandPool				 _commandPool;
+	std::vector<VkCommandBuffer> _commandBuffers;
 
-	VkSemaphore				   _imageAvailableSemaphore;
-	VkSemaphore				   _renderFinishedSemaphore;
-	VkFence					   _inFlightFence;
+	std::vector<VkSemaphore>	 _imageAvailableSemaphores;
+	std::vector<VkSemaphore>	 _renderFinishedSemaphores;
+	std::vector<VkFence>		 _inFlightFences;
 
-	VkDevice				   _device{};
+	VkDevice					 _device{};
 
 	friend class Renderer;
 };

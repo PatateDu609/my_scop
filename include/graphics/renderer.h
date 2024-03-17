@@ -17,7 +17,7 @@ public:
 	[[nodiscard]] VkSurfaceKHR get_surface() const;
 
 	GLFWwindow				  *getWindow() const;
-	void					   render();
+	void					   render(uint32_t frame_idx);
 
 private:
 	void			init_surface();
