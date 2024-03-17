@@ -7,15 +7,15 @@
 
 #include <iostream>
 #include <map>
+#include <sstream>
 
-
-static void key_input(GLFWwindow * window, const int key, const int scancode, const int action, const int mods) {
+static void key_input(GLFWwindow *window, const int key, const int scancode, const int action, const int mods) {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 	}
 }
 
-Application::Application(int ac, char **av) : _window(nullptr), _instance(), _physicalDevice(VK_NULL_HANDLE) {
+Application::Application(const int ac, char **av) : _window(nullptr), _physicalDevice(VK_NULL_HANDLE) {
 	if (ac != 2) {
 		std::cerr << "usage: ./scop <scene file>" << std::endl;
 		std::exit(1);
@@ -69,9 +69,24 @@ void Application::init_window() {
 
 
 int Application::run() {
+	uint64_t frame_cnt = 0;
+	double time_since_last_update = glfwGetTime();
+
+	std::ostringstream oss;
+
 	while (!glfwWindowShouldClose(_window.get())) {
 		glfwPollEvents();
 		_instance->render();
+		frame_cnt++;
+
+		if (glfwGetTime() - time_since_last_update >= 1.0) {
+			oss.str("");
+			oss << WINDOW_TITLE << " - FPS: " << frame_cnt;
+
+			glfwSetWindowTitle(_window.get(), oss.str().c_str());
+			time_since_last_update = glfwGetTime();
+			frame_cnt = 0;
+		}
 	}
 
 	_instance->waitIdle();
@@ -123,8 +138,7 @@ uint32_t Application::check_physical_device_suitability(VkPhysicalDevice physica
 }
 
 
-bool Application::check_mandatory_features(VkPhysicalDevice			physicalDevice, VkPhysicalDeviceProperties,
-										   VkPhysicalDeviceFeatures deviceFeatures) const {
+bool Application::check_mandatory_features(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties, VkPhysicalDeviceFeatures deviceFeatures) const {
 	if (!deviceFeatures.sampleRateShading || !deviceFeatures.samplerAnisotropy)
 		return false;
 
