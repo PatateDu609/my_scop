@@ -4,6 +4,11 @@ project(scop DESCRIPTION "a small 3D object loader")
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
+find_package(
+        Doxygen
+        REQUIRED dot
+        OPTIONAL_COMPONENTS mscgen
+)
 
 include(FetchContent)
 
@@ -59,8 +64,7 @@ endif ()
 
 set(SRC_PARSER
         include/parser/parser.h src/parser/parser.cpp
-        include/parser/line_objects.h
-        src/parser/line_parser.cpp
+        include/parser/line_objects.h src/parser/line_parser.cpp
         src/parser/exceptions.cpp
         include/parser/utils.h src/parser/utils.cpp)
 
@@ -71,9 +75,8 @@ set(SRC_GRAPHICS
         include/graphics/renderer.h src/graphics/renderer.cpp
         include/graphics/queue_families.h src/graphics/queue_families.cpp
         include/graphics/swap_chain.h src/graphics/swap_chain.cpp
-        include/graphics/shaders.h
-        src/graphics/pipeline.cpp include/graphics/pipeline.h
-        src/graphics/shaders.cpp)
+        include/graphics/shaders.h src/graphics/shaders.cpp
+        src/graphics/pipeline.cpp include/graphics/pipeline.h)
 
 set(SRC_MAIN
         src/main.cpp
@@ -97,3 +100,36 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         PRIVATE ${Vulkan_LIBRARIES}
         PRIVATE glfw)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE shaderc)
+
+set(DOXYGEN_OUTPUT_DIRECTORY docs)
+set(DOXYGEN_CREATE_SUBDIRS YES)
+
+set(DOXYGEN_CALLER_GRAPH YES)
+set(DOXYGEN_CALL_GRAPH YES)
+set(DOXYGEN_CLASS_GRAPH YES)
+set(DOXYGEN_DIR_GRAPH_MAX_DEPTH 2)
+set(DOXYGEN_SOURCE_BROWSER YES)
+set(DOXYGEN_TEMPLATE_RELATIONS YES)
+
+set(DOXYGEN_DOT_IMAGE_FORMAT svg)
+set(DOXYGEN_INTERACTIVE_SVG YES)
+
+set(DOXYGEN_EXTRACT_ALL YES)
+set(DOXYGEN_EXTRACT_ANON_NSPACES YES)
+set(DOXYGEN_EXTRACT_PRIVATE YES)
+set(DOXYGEN_EXTRACT_PRIV_VIRTUAL YES)
+set(DOXYGEN_EXTRACT_STATIC YES)
+
+set(DOXYGEN_GENERATE_TREEVIEW YES)
+
+set(DOXYGEN_UML_LOOK YES)
+set(DOXYGEN_UML_LIMIT_NUM_FIELDS 20)
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL Darwin)
+    set(DOXYGEN_CASE_SENSE_NAMES NO)
+endif ()
+
+doxygen_add_docs(
+        doxygen
+        ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS}
+)
