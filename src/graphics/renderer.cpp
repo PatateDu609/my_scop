@@ -4,6 +4,7 @@
 
 #include "application.h"
 #include "graphics/vulkan.h"
+#include "maths/utils.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -52,7 +53,7 @@ void Renderer::render(const VkPhysicalDevice physical, const uint32_t frame_idx)
 
 	vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
 
-	uint32_t	   img_idx;
+	uint32_t img_idx;
 	{
 		// ReSharper disable once CppTooWideScopeInitStatement
 		const VkResult res = vkAcquireNextImageKHR(device, _instance->_swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &img_idx);
@@ -69,7 +70,9 @@ void Renderer::render(const VkPhysicalDevice physical, const uint32_t frame_idx)
 
 	vkResetFences(device, 1, &inFlightFence);
 	vkResetCommandBuffer(commandBuffer, 0);
-	_instance->record_command_buffer(commandBuffer, img_idx);
+	_instance->record_command_buffer(commandBuffer, img_idx, frame_idx);
+
+	updateUniformBuffer(frame_idx);
 
 	const std::array							  waitSemaphore{imageAvailableSemaphore};
 	constexpr std::array<VkPipelineStageFlags, 1> waitPipelineStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -108,11 +111,33 @@ void Renderer::render(const VkPhysicalDevice physical, const uint32_t frame_idx)
 			std::cerr << "SWAPCHAIN INVALID, RECREATING IT" << std::endl;
 			_instance->_framebufferResized = false;
 			_instance->recreate_swapchain(physical);
-		}
-		else if (res != VK_SUCCESS) {
+		} else if (res != VK_SUCCESS) {
 			throw std::runtime_error("couldn't present the resultant image to screen");
 		}
 	}
+}
+
+void Renderer::updateUniformBuffer(uint32_t frame_idx) const {
+	const static auto	start_time	 = std::chrono::high_resolution_clock::now();
+
+	const auto			current_time = std::chrono::high_resolution_clock::now();
+	const float			elapsed		 = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+	const float			ratio		 = _instance->_swapchainExtent.width / static_cast<float>(_instance->_swapchainExtent.height);
+
+	UniformBufferObject ubo{};
+	ubo.model = maths::Mat4::rotate(elapsed * maths::rad(90), maths::Vec3(0, 0, 1));
+	ubo.view  = maths::Mat4::lookAt(maths::Vec3(2.0f, 2.0f, 2.0f), maths::Vec3(0.0f, 0.0f, 0.0f), maths::Vec3(0.0f, 0.0f, 1.0f));
+	ubo.proj  = maths::Mat4::perspective(maths::rad(45), ratio, 0.1f, 10.0f);
+
+	if constexpr (DEBUG) {
+		display_mat("model", ubo.model, 4, 4);
+		display_mat("view", ubo.view, 4, 4);
+		display_mat("proj", ubo.proj, 4, 4);
+	}
+
+
+	ubo.proj[1][1] *= -1;
+	memcpy(_instance->_uniformBuffersMapped[frame_idx], &ubo, sizeof ubo);
 }
 
 

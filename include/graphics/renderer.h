@@ -23,6 +23,8 @@ private:
 	void			init_surface();
 	void			acquire_queues(const QueueFamilyIndices &indices);
 
+	void updateUniformBuffer(uint32_t frame_idx) const;
+
 	VulkanInstance *_instance;
 	GLFWwindow	   *_window;
 	VkSurfaceKHR	_surface;

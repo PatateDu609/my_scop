@@ -55,9 +55,14 @@ public:
 	Vec3				operator-(const Vec3 &other) const;
 	Vec3			   &operator-=(const Vec3 &other);
 
+	Vec3			   &operator-();
+	Vec3				operator-() const;
+
 	Vec3				operator*(float lambda) const;
 	Vec3			   &operator*=(float lambda);
 	float				operator*(const Vec3 &other) const;
+	Vec3				cross(const Vec3 &other) const;
+	Vec3			   &crossed(const Vec3 &other);
 
 	float			   &x();
 	float				x() const;
@@ -71,10 +76,14 @@ public:
 	[[nodiscard]] float norm2() const;
 	[[nodiscard]] float norm() const;
 
+	Vec3			   &normalize();
+	Vec3				normalized() const;
+
+
 	// ReSharper disable once CppNonExplicitConversionOperator
 	template <typename T, typename U, typename V>
 	operator std::tuple<T, U, V>() {
-		return std::make_tuple(x(), y(), z());
+		return {x(), y(), z()};
 	}
 
 private:

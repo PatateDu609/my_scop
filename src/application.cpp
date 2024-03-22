@@ -58,6 +58,9 @@ void Application::init() {
 	_instance->create_short_lived_command_pool(_physicalDevice);
 	_instance->create_vertex_buffer(_physicalDevice);
 	_instance->create_index_buffer(_physicalDevice);
+	_instance->create_uniform_buffers(_physicalDevice);
+	_instance->create_descriptor_pool();
+	_instance->create_descriptor_sets();
 	_instance->create_command_buffers();
 	_instance->create_sync_objects();
 }

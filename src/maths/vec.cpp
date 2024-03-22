@@ -90,7 +90,7 @@ float Vec2::compute_norm(const bool use_sqrt) const {
 //                                        Vec3                                        //
 /**************************************************************************************/
 
-Vec3::Vec3(float x, float y, float z) : _repr{x, y, z} {
+Vec3::Vec3(const float x, const float y, const float z) : _repr{x, y, z} {
 }
 
 Vec3 Vec3::operator+(const Vec3 &other) const {
@@ -115,6 +115,16 @@ Vec3 &Vec3::operator-=(const Vec3 &other) {
 	return *this;
 }
 
+Vec3 &Vec3::operator-() {
+	x() = -x();
+	y() = -y();
+	z() = -z();
+	return *this;
+}
+Vec3 Vec3::operator-() const {
+	return Vec3(-x(), -y(), -z());
+}
+
 Vec3 Vec3::operator*(const float lambda) const {
 	return Vec3{x() * lambda, y() * lambda, z() * lambda};
 }
@@ -128,6 +138,21 @@ Vec3 &Vec3::operator*=(const float lambda) {
 
 float Vec3::operator*(const Vec3 &other) const {
 	return x() * other.x() + y() * other.y() + z() * other.z();
+}
+
+Vec3 Vec3::cross(const Vec3 &other) const {
+	Vec3 res(*this);
+	return res.crossed(other);
+}
+
+Vec3 &Vec3::crossed(const Vec3 &other) {
+	// yz' − zy', zx' − xz', xy' − yx'
+	const double cur_x = x(), cur_y = y(), cur_z = z();
+
+	x() = cur_y * other.z() - cur_z * other.y();
+	y() = cur_z * other.x() - cur_x * other.z();
+	z() = cur_x * other.y() - cur_y * other.x();
+	return *this;
 }
 
 float &Vec3::x() {
@@ -179,6 +204,18 @@ float Vec3::compute_norm(const bool use_sqrt) const {
 	}
 
 	return use_sqrt ? cachedNorm.second.second : cachedNorm.second.first;
+}
+
+Vec3 &Vec3::normalize() {
+	const float n  = norm();
+	x()			  /= n;
+	y()			  /= n;
+	z()			  /= n;
+	return *this;
+}
+
+Vec3 Vec3::normalized() const {
+	return Vec3(*this).normalize();
 }
 
 } // namespace maths

@@ -43,6 +43,13 @@ VulkanInstance::~VulkanInstance() {
 	vkDestroyBuffer(_device, _indexBuffer, nullptr);
 	vkFreeMemory(_device, _indexBufferMemory, nullptr);
 
+	for (size_t i = 0; i < _uniformBuffers.size(); i++) {
+		vkDestroyBuffer(_device, _uniformBuffers[i], nullptr);
+		vkFreeMemory(_device, _uniformBuffersMemory[i], nullptr);
+	}
+	_uniformBuffersMapped.clear();
+
+	vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
 	_pipeline.reset();
 	vkDestroyDevice(_device, nullptr);
 
@@ -305,6 +312,7 @@ void VulkanInstance::create_pipeline(std::string vertex_shader, std::string frag
 	_pipeline->setup_shader_modules();
 
 	_pipeline->setup_render_pass(_swapchainFormat);
+	_pipeline->create_descriptor_sets();
 	_pipeline->setup(_swapchainExtent);
 }
 
@@ -364,6 +372,23 @@ void VulkanInstance::create_short_lived_command_pool(const VkPhysicalDevice &phy
 	std::cerr << "Created successfully short lived command pool for current device" << std::endl;
 }
 
+void VulkanInstance::create_uniform_buffers(const VkPhysicalDevice &physical) {
+	constexpr VkBufferUsageFlags	usage	   = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	constexpr VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+	_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	_uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+	_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+	for (size_t i = 0; i < _uniformBuffers.size(); i++) {
+		constexpr VkDeviceSize bufferSize					   = sizeof(UniformBufferObject);
+
+		std::tie(_uniformBuffers[i], _uniformBuffersMemory[i]) = create_buffer(physical, bufferSize, usage, properties);
+		vkMapMemory(_device, _uniformBuffersMemory[i], 0, bufferSize, 0, &_uniformBuffersMapped[i]);
+		std::cerr << "Created successfully uniform buffer " << i << std::endl;
+	}
+}
+
 void VulkanInstance::create_command_buffers() {
 	_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -379,7 +404,62 @@ void VulkanInstance::create_command_buffers() {
 	std::cerr << "Created successfully command buffer for current device" << std::endl;
 }
 
-void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer, const uint32_t image_idx) const {
+void VulkanInstance::create_descriptor_pool() {
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type			 = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	VkDescriptorPoolCreateInfo createInfo{};
+	createInfo.sType		 = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	createInfo.poolSizeCount = 1;
+	createInfo.pPoolSizes	 = &poolSize;
+	createInfo.maxSets		 = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	if (vkCreateDescriptorPool(_device, &createInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create new descriptor pool");
+	}
+	std::cerr << "Created successfully descriptor pool" << std::endl;
+}
+
+void VulkanInstance::create_descriptor_sets() {
+	const std::vector			layouts(MAX_FRAMES_IN_FLIGHT, _pipeline->descriptorSetLayout);
+
+	VkDescriptorSetAllocateInfo allocateInfo{};
+	allocateInfo.sType				= VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocateInfo.descriptorPool		= _descriptorPool;
+	allocateInfo.descriptorSetCount = layouts.size();
+	allocateInfo.pSetLayouts		= layouts.data();
+
+	_descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+	if (vkAllocateDescriptorSets(_device, &allocateInfo, _descriptorSets.data()) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't allocate descriptor sets for current device");
+	}
+	std::cerr << "Allocated successfully descriptor sets for current device"<< std::endl;
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = _uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range  = VK_WHOLE_SIZE;
+
+		VkWriteDescriptorSet writeDescriptor{};
+		writeDescriptor.sType			 = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeDescriptor.dstSet			 = _descriptorSets[i];
+		writeDescriptor.dstBinding		 = 0;
+		writeDescriptor.dstArrayElement	 = 0;
+		writeDescriptor.descriptorType	 = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writeDescriptor.descriptorCount	 = 1;
+		writeDescriptor.pBufferInfo		 = &bufferInfo;
+		writeDescriptor.pImageInfo		 = nullptr;
+		writeDescriptor.pTexelBufferView = nullptr;
+
+		vkUpdateDescriptorSets(_device, 1, &writeDescriptor, 0, nullptr);
+		std::cerr << "Updated descriptor set number " << i << std::endl;
+	}
+}
+
+
+void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer, const uint32_t image_idx, uint32_t frame_idx) const {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType			   = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags			   = 0;
@@ -420,6 +500,7 @@ void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer,
 	constexpr std::array<VkDeviceSize, buffers.size()> offsets{0};
 	vkCmdBindVertexBuffers(command_buffer, 0, buffers.size(), buffers.data(), offsets.data());
 	vkCmdBindIndexBuffer(command_buffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->layout, 0, 1, &_descriptorSets[frame_idx], 0, nullptr);
 	vkCmdDrawIndexed(command_buffer, _indices.size(), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(command_buffer);

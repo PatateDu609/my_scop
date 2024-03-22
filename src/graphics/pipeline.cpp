@@ -14,12 +14,13 @@ Pipeline::Pipeline(VkDevice &device, std::string vertex_path, std::string fragme
 }
 
 Pipeline::~Pipeline() {
-	if (pipeline)
-		vkDestroyPipeline(device, pipeline, nullptr);
-	if (layout)
-		vkDestroyPipelineLayout(device, layout, nullptr);
-	if (renderPass)
-		vkDestroyRenderPass(device, renderPass, nullptr);
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
+	vkDestroyPipeline(device, pipeline, nullptr);
+
+	vkDestroyPipelineLayout(device, layout, nullptr);
+
+	vkDestroyRenderPass(device, renderPass, nullptr);
 
 	for (auto &[stage_name, data] : shaders) {
 		if (!data.module) {
@@ -146,6 +147,27 @@ void Pipeline::setup_render_pass(const VkFormat &format) {
 	std::cerr << "Created successfully render pass for current device" << std::endl;
 }
 
+void Pipeline::create_descriptor_sets() {
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding			= 0;
+	uboLayoutBinding.descriptorType		= VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount	= 1;
+	uboLayoutBinding.stageFlags			= VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo createInfo{};
+	createInfo.sType		= VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	createInfo.bindingCount = 1;
+	createInfo.pBindings	= &uboLayoutBinding;
+	createInfo.flags		= 0;
+
+	if (vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("couldn't create descriptor set layout");
+	}
+	std::cerr << "Created descriptor set layout successfully" << std::endl;
+}
+
+
 void Pipeline::setup(const VkExtent2D &extent) {
 	static std::vector				 dynamicStates{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
@@ -193,7 +215,7 @@ void Pipeline::setup(const VkExtent2D &extent) {
 	rasterizerCreateInfo.rasterizerDiscardEnable = VK_POLYGON_MODE_FILL;
 	rasterizerCreateInfo.lineWidth				 = 1.0F;
 	rasterizerCreateInfo.cullMode				 = VK_CULL_MODE_BACK_BIT;
-	rasterizerCreateInfo.frontFace				 = VK_FRONT_FACE_CLOCKWISE;
+	rasterizerCreateInfo.frontFace				 = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizerCreateInfo.depthBiasEnable		 = VK_FALSE;
 	rasterizerCreateInfo.depthBiasConstantFactor = 0.0F;
 	rasterizerCreateInfo.depthBiasClamp			 = 0.0F;
@@ -233,8 +255,8 @@ void Pipeline::setup(const VkExtent2D &extent) {
 
 	VkPipelineLayoutCreateInfo pipelineCreateInfo{};
 	pipelineCreateInfo.sType				  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineCreateInfo.setLayoutCount		  = 0;
-	pipelineCreateInfo.pSetLayouts			  = nullptr;
+	pipelineCreateInfo.setLayoutCount		  = 1;
+	pipelineCreateInfo.pSetLayouts			  = &descriptorSetLayout;
 	pipelineCreateInfo.pushConstantRangeCount = 0;
 	pipelineCreateInfo.pPushConstantRanges	  = nullptr;
 

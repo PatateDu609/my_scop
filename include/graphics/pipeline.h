@@ -35,6 +35,7 @@ public:
 
 	void			   setup_shader_modules();
 	void			   setup_render_pass(const VkFormat &format);
+	void			   create_descriptor_sets();
 	void			   setup(const VkExtent2D &extent);
 
 private:
@@ -42,6 +43,7 @@ private:
 
 	std::reference_wrapper<VkDevice>			device;
 	VkRenderPass								renderPass{};
+	VkDescriptorSetLayout						descriptorSetLayout{};
 	VkPipelineLayout							layout{};
 	VkPipeline									pipeline{};
 

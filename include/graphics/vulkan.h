@@ -41,10 +41,13 @@ public:
 	void										create_command_pool(const VkPhysicalDevice &physical);
 	void										create_short_lived_command_pool(const VkPhysicalDevice &physical);
 	void										create_command_buffers();
-	void										record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_idx) const;
+	void										record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_idx, uint32_t frame_idx) const;
 	void										create_sync_objects();
 	void										create_vertex_buffer(const VkPhysicalDevice &physical);
 	void										create_index_buffer(const VkPhysicalDevice &physical);
+	void										create_uniform_buffers(const VkPhysicalDevice &physical);
+	void										create_descriptor_pool();
+	void										create_descriptor_sets();
 
 	void										render(VkPhysicalDevice physical, uint32_t frame_idx) const;
 	void										waitIdle() const;
@@ -82,6 +85,12 @@ private:
 	std::vector<VkSemaphore>			_imageAvailableSemaphores;
 	std::vector<VkSemaphore>			_renderFinishedSemaphores;
 	std::vector<VkFence>				_inFlightFences;
+
+	VkDescriptorPool					_descriptorPool{};
+	std::vector<VkDescriptorSet>		_descriptorSets;
+	std::vector<VkBuffer>				_uniformBuffers;
+	std::vector<VkDeviceMemory>			_uniformBuffersMemory;
+	std::vector<void *>					_uniformBuffersMapped;
 
 	VkDevice							_device{};
 

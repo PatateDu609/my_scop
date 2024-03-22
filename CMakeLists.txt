@@ -10,6 +10,8 @@ find_package(
         OPTIONAL_COMPONENTS mscgen
 )
 
+find_package(glm REQUIRED)
+
 include(FetchContent)
 
 # Setup Glfw
@@ -79,11 +81,13 @@ set(SRC_GRAPHICS
         src/graphics/pipeline.cpp include/graphics/pipeline.h)
 
 set(SRC_MATHS
-        src/maths/vec.cpp include/maths/vec.h)
+        src/maths/vec.cpp include/maths/vec.h
+        include/maths/mat.h src/maths/mat.cpp)
 
 set(SRC_MAIN
         src/main.cpp
-        include/application.h src/application.cpp)
+        include/application.h src/application.cpp
+        include/maths/utils.h)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS} ${SRC_MATHS})
 target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -Wall -Wextra)
@@ -101,7 +105,8 @@ target_include_directories(${CMAKE_PROJECT_NAME}
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
         PRIVATE ${Vulkan_LIBRARIES}
-        PRIVATE glfw)
+        PRIVATE glfw
+        PRIVATE glm::glm)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE shaderc)
 
 set(DOXYGEN_OUTPUT_DIRECTORY docs)

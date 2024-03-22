@@ -19,6 +19,7 @@ AlignConsecutiveDeclarations:
   AcrossEmptyLines: true
   AlignCompound: true
   PadOperators: true
+AlignOperands: Align
 QualifierAlignment: Custom
 ColumnLimit: 160
 AlignEscapedNewlines: Right
