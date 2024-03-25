@@ -199,7 +199,7 @@ Mat4 Mat4::lookAt(const Vec3 &eye, const Vec3 &center, const Vec3 &arbUp) {
 	Vec3 right	 = forward.cross(arbUp).normalized();
 	Vec3 up		 = right.cross(forward);
 
-	Mat4 lookAt = identity;
+	Mat4 lookAt	 = identity;
 
 	lookAt[0][0] = right.x();
 	lookAt[1][0] = right.y();

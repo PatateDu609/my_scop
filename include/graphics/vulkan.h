@@ -3,6 +3,7 @@
 
 #include "pipeline.h"
 #include "renderer.h"
+#include "textures.h"
 #include "utils.h"
 
 #include <vector>
@@ -48,6 +49,9 @@ public:
 	void										create_uniform_buffers(const VkPhysicalDevice &physical);
 	void										create_descriptor_pool();
 	void										create_descriptor_sets();
+	void										create_texture_object(const VkPhysicalDevice &physical, std::string path);
+	void										create_tex_img_view();
+	void										create_tex_sampler(const VkPhysicalDevice &physical);
 
 	void										render(VkPhysicalDevice physical, uint32_t frame_idx) const;
 	void										waitIdle() const;
@@ -59,9 +63,17 @@ public:
 private:
 	std::pair<VkBuffer, VkDeviceMemory> create_buffer(const VkPhysicalDevice &physical, VkDeviceSize size, VkBufferUsageFlags usage,
 													  VkMemoryPropertyFlags properties) const;
+	std::pair<VkImage, VkDeviceMemory>	createImage(VkPhysicalDevice physical, size_t w, size_t h, VkFormat format, VkImageTiling tiling,
+													VkImageUsageFlags usage, VkMemoryPropertyFlags props) const;
+	std::optional<VkImageView>			createImageView(VkImage image, VkFormat format) const;
+
 	static uint32_t						find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
+	VkCommandBuffer						beginSingleTimeCommand() const;
+	void								endSingleTimeCommand(VkCommandBuffer cmdBuffer) const;
 
 	void								copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
+	void								transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) const;
+	void								copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
 
 	VkInstance							_instance{};
 	VkDebugUtilsMessengerEXT			_debugMessenger{};
@@ -101,6 +113,13 @@ private:
 	std::vector<uint16_t>				_indices;
 	VkBuffer							_indexBuffer{};
 	VkDeviceMemory						_indexBufferMemory{};
+
+	resources::Texture					_tex{};
+	VkImage								_texImg{};
+	VkImageView							_texImgView{};
+	VkDeviceMemory						_texImgMemory{};
+
+	VkSampler							_sampler{};
 
 	friend class Renderer;
 };

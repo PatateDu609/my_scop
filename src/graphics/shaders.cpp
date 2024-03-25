@@ -108,7 +108,7 @@ void Shader::load_file() {
 
 	const static std::unordered_map<std::string, Type> shader_stage_association{
 		{"fragment", FRAGMENT},
-		{"vertex", VERTEX},
+		{"vertex",   VERTEX	 },
 	};
 
 	for (const auto &match : matches) {

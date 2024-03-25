@@ -147,7 +147,7 @@ void Pipeline::setup_render_pass(const VkFormat &format) {
 	std::cerr << "Created successfully render pass for current device" << std::endl;
 }
 
-void Pipeline::create_descriptor_sets() {
+void Pipeline::create_descriptor_set_layout() {
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
 	uboLayoutBinding.binding			= 0;
 	uboLayoutBinding.descriptorType		= VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -155,10 +155,19 @@ void Pipeline::create_descriptor_sets() {
 	uboLayoutBinding.stageFlags			= VK_SHADER_STAGE_VERTEX_BIT;
 	uboLayoutBinding.pImmutableSamplers = nullptr;
 
+	VkDescriptorSetLayoutBinding samplerBinding{};
+	samplerBinding.binding = 1;
+	samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerBinding.descriptorCount = 1;
+	samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	samplerBinding.pImmutableSamplers = nullptr;
+
+	const std::array				bindings{uboLayoutBinding, samplerBinding};
+
 	VkDescriptorSetLayoutCreateInfo createInfo{};
 	createInfo.sType		= VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	createInfo.bindingCount = 1;
-	createInfo.pBindings	= &uboLayoutBinding;
+	createInfo.bindingCount = bindings.size();
+	createInfo.pBindings	= bindings.data();
 	createInfo.flags		= 0;
 
 	if (vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {

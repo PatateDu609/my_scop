@@ -129,7 +129,7 @@ void Renderer::updateUniformBuffer(uint32_t frame_idx) const {
 	ubo.view  = maths::Mat4::lookAt(maths::Vec3(2.0f, 2.0f, 2.0f), maths::Vec3(0.0f, 0.0f, 0.0f), maths::Vec3(0.0f, 0.0f, 1.0f));
 	ubo.proj  = maths::Mat4::perspective(maths::rad(45), ratio, 0.1f, 10.0f);
 
-	if constexpr (DEBUG) {
+	if constexpr (DEBUG && false) {
 		display_mat("model", ubo.model, 4, 4);
 		display_mat("view", ubo.view, 4, 4);
 		display_mat("proj", ubo.proj, 4, 4);

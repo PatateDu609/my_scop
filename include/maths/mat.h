@@ -44,7 +44,7 @@ public:
 	Mat4		operator-() const;
 
 	static Mat4 rotate(InternalType angle, const Vec3 &u);
-	static Mat4 lookAt(const Vec3 &eye, const Vec3& center, const Vec3& arbUp);
+	static Mat4 lookAt(const Vec3 &eye, const Vec3 &center, const Vec3 &arbUp);
 	static Mat4 perspective(float fov, float aspectRatio, float near, float far);
 
 private:

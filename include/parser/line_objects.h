@@ -7,33 +7,33 @@
 
 namespace parser {
 struct Vertex {
-	explicit Vertex(std::vector<std::string> const &args);
+	explicit Vertex(const std::vector<std::string> &args);
 
-	float x{};
-	float y{};
-	float z{};
+	float	 x{};
+	float	 y{};
+	float	 z{};
 };
 
 struct Normal {
-	explicit Normal(std::vector<std::string> const &args);
+	explicit Normal(const std::vector<std::string> &args);
 
-	float i{};
-	float j{};
-	float k{};
+	float	 i{};
+	float	 j{};
+	float	 k{};
 };
 
 struct VertexTexture {
-	explicit VertexTexture(std::vector<std::string> const &args);
+	explicit VertexTexture(const std::vector<std::string> &args);
 
-	float u{};
-	float v{};
+	float	 u{};
+	float	 v{};
 };
 
 struct Face {
 	typedef uint32_t index_type;
 
 	struct Indices {
-		explicit Indices(std::string const &arg);
+		explicit				  Indices(const std::string &arg);
 
 		index_type				  vertex;
 		std::optional<index_type> texture;
@@ -42,7 +42,7 @@ struct Face {
 		[[nodiscard]] bool		  validate(bool require_texture, bool require_normal) const;
 	};
 
-	explicit Face(std::vector<std::string> const &args);
+	explicit			 Face(const std::vector<std::string> &args);
 
 	std::vector<Indices> vertices;
 };

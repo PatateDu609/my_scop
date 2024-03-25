@@ -56,6 +56,9 @@ void Application::init() {
 	_instance->create_framebuffers();
 	_instance->create_command_pool(_physicalDevice);
 	_instance->create_short_lived_command_pool(_physicalDevice);
+	_instance->create_texture_object(_physicalDevice, "resources/textures/texture.jpg");
+	_instance->create_tex_img_view();
+	_instance->create_tex_sampler(_physicalDevice);
 	_instance->create_vertex_buffer(_physicalDevice);
 	_instance->create_index_buffer(_physicalDevice);
 	_instance->create_uniform_buffers(_physicalDevice);

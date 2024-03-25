@@ -53,6 +53,7 @@ AllowShortCaseLabelsOnASingleLine: true
 AllowShortEnumsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
+AlignArrayOfStructures: Right
 
 QualifierOrder:
   - const

@@ -28,7 +28,7 @@ private:
 	void init_window();
 
 public:
-	int run() const;
+	int	 run() const;
 	void mark_framebuffer_resized() const;
 
 private:

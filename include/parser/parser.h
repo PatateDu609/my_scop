@@ -7,20 +7,20 @@
 #include <vector>
 
 namespace parser {
-void parse(std::string const &filename);
+void parse(const std::string &filename);
 
 class ifs_error : public std::exception {
 public:
-	explicit ifs_error(std::string const &filename);
+	explicit				  ifs_error(const std::string &filename);
 
-	[[nodiscard]] char const *what() const throw() override;
+	[[nodiscard]] const char *what() const throw() override;
 
 private:
 	std::string err_str;
 };
 
 class File {
-	friend void parse(std::string const &filename);
+	friend void parse(const std::string &filename);
 
 public:
 	struct ResolvedFace {

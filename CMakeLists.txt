@@ -78,7 +78,8 @@ set(SRC_GRAPHICS
         include/graphics/queue_families.h src/graphics/queue_families.cpp
         include/graphics/swap_chain.h src/graphics/swap_chain.cpp
         include/graphics/shaders.h src/graphics/shaders.cpp
-        src/graphics/pipeline.cpp include/graphics/pipeline.h)
+        src/graphics/pipeline.cpp include/graphics/pipeline.h
+        src/graphics/textures.cpp include/graphics/textures.h)
 
 set(SRC_MATHS
         src/maths/vec.cpp include/maths/vec.h
@@ -87,6 +88,7 @@ set(SRC_MATHS
 set(SRC_MAIN
         src/main.cpp
         include/application.h src/application.cpp
+        include/stb_image.h src/stb_image.impl.c
         include/maths/utils.h)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRC_MAIN} ${SRC_PARSER} ${SRC_GRAPHICS} ${SRC_MATHS})

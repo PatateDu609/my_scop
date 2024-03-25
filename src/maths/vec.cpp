@@ -74,7 +74,10 @@ float Vec2::norm() const {
 float Vec2::compute_norm(const bool use_sqrt) const {
 	// .first => Repr used to compute norm
 	// .second => Cached norm in which .first will be the Scalar Product (norm * norm) and .second will be the squared root of .first
-	static std::pair<Repr, NormPair> cachedNorm{{0, 0}, {0, 0}};
+	static std::pair<Repr, NormPair> cachedNorm{
+		{0, 0},
+		{0, 0}
+	  };
 
 	if (cachedNorm.first != _repr) {
 		const float normSquared	 = *this * *this;
@@ -194,7 +197,10 @@ float Vec3::norm() const {
 float Vec3::compute_norm(const bool use_sqrt) const {
 	// .first => Repr used to compute norm
 	// .second => Cached norm in which .first will be the Scalar Product (norm * norm) and .second will be the squared root of .first
-	static std::pair<Repr, NormPair> cachedNorm{{0, 0, 0}, {0, 0}};
+	static std::pair<Repr, NormPair> cachedNorm{
+		{0, 0, 0},
+		   {0, 0}
+	 };
 
 	if (cachedNorm.first != _repr) {
 		const float normSquared	 = *this * *this;

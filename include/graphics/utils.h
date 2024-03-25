@@ -18,9 +18,10 @@ bool								   check_device_extension_support(VkPhysicalDevice physicalDevice);
 struct VertexData {
 	maths::Vec2												position;
 	maths::Vec3												color;
+	maths::Vec2												tex;
 
 	static VkVertexInputBindingDescription					getBindingDesc();
-	static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescs();
+	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescs();
 };
 
 struct UniformBufferObject {

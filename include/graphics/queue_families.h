@@ -6,15 +6,15 @@
 #include <vulkan/vulkan_core.h>
 
 namespace graphics {
-	struct QueueFamilyIndices {
-		std::optional<uint32_t> graphicsFamily;
-		std::optional<uint32_t> presentFamily;
+struct QueueFamilyIndices {
+	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily;
 
-		explicit operator bool() const;
-		explicit operator std::set<uint32_t>() const;
-	};
+	explicit				operator bool() const;
+	explicit				operator std::set<uint32_t>() const;
+};
 
-	QueueFamilyIndices find_queue_families(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-}
+QueueFamilyIndices find_queue_families(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+} // namespace graphics
 
-#endif //SCOP_QUEUE_FAMILIES_H
+#endif // SCOP_QUEUE_FAMILIES_H
