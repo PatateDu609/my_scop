@@ -86,7 +86,7 @@ std::array<VkVertexInputAttributeDescription, 3> VertexData::getAttributeDescs()
 
 	attrs[0].binding  = 0;
 	attrs[0].location = 0;
-	attrs[0].format	  = VK_FORMAT_R32G32_SFLOAT;
+	attrs[0].format	  = VK_FORMAT_R32G32B32_SFLOAT;
 	attrs[0].offset	  = offsetof(VertexData, position);
 
 	attrs[1].binding  = 0;

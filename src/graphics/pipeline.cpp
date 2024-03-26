@@ -105,7 +105,7 @@ void Pipeline::setup_shader_modules() {
 	}
 }
 
-void Pipeline::setup_render_pass(const VkFormat &format) {
+void Pipeline::setup_render_pass(const VkFormat &format, const VkFormat &depthFormat) {
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format		   = format;
 	colorAttachment.samples		   = VK_SAMPLE_COUNT_1_BIT;
@@ -116,26 +116,43 @@ void Pipeline::setup_render_pass(const VkFormat &format) {
 	colorAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
 	colorAttachment.finalLayout	   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+	VkAttachmentDescription depthAttachment{};
+	depthAttachment.format		   = depthFormat;
+	depthAttachment.samples		   = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.loadOp		   = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.storeOp		   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachment.finalLayout	   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	VkAttachmentReference colorAttachmentRef{};
 	colorAttachmentRef.attachment = 0; // idx of layout in fragment shader
 	colorAttachmentRef.layout	  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	VkAttachmentReference depthAttachmentRef{};
+	depthAttachmentRef.attachment = 1; // idx of layout in fragment shader
+	depthAttachmentRef.layout	  = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	VkSubpassDescription subpass{};
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments	 = &colorAttachmentRef;
+	subpass.colorAttachmentCount	= 1;
+	subpass.pColorAttachments		= &colorAttachmentRef;
+	subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
 	VkSubpassDependency subpassDependency{};
 	subpassDependency.srcSubpass	= VK_SUBPASS_EXTERNAL;
 	subpassDependency.dstSubpass	= 0;
-	subpassDependency.srcStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.srcStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	subpassDependency.srcAccessMask = 0;
-	subpassDependency.dstStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpassDependency.dstStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+	const std::array	   attachments{colorAttachment, depthAttachment};
 
 	VkRenderPassCreateInfo renderPassCreateInfo{};
 	renderPassCreateInfo.sType			 = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassCreateInfo.attachmentCount = 1;
-	renderPassCreateInfo.pAttachments	 = &colorAttachment;
+	renderPassCreateInfo.attachmentCount = attachments.size();
+	renderPassCreateInfo.pAttachments	 = attachments.data();
 	renderPassCreateInfo.subpassCount	 = 1;
 	renderPassCreateInfo.pSubpasses		 = &subpass;
 	renderPassCreateInfo.dependencyCount = 1;
@@ -156,10 +173,10 @@ void Pipeline::create_descriptor_set_layout() {
 	uboLayoutBinding.pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutBinding samplerBinding{};
-	samplerBinding.binding = 1;
-	samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	samplerBinding.descriptorCount = 1;
-	samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	samplerBinding.binding			  = 1;
+	samplerBinding.descriptorType	  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerBinding.descriptorCount	  = 1;
+	samplerBinding.stageFlags		  = VK_SHADER_STAGE_FRAGMENT_BIT;
 	samplerBinding.pImmutableSamplers = nullptr;
 
 	const std::array				bindings{uboLayoutBinding, samplerBinding};
@@ -262,6 +279,18 @@ void Pipeline::setup(const VkExtent2D &extent) {
 	colorBlendingCreateInfo.blendConstants[2] = 0.0F;
 	colorBlendingCreateInfo.blendConstants[3] = 0.0F;
 
+	VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo{};
+	depthStencilCreateInfo.sType				   = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilCreateInfo.depthTestEnable	   = VK_TRUE;
+	depthStencilCreateInfo.depthWriteEnable	   = VK_TRUE;
+	depthStencilCreateInfo.depthCompareOp		   = VK_COMPARE_OP_LESS;
+	depthStencilCreateInfo.depthBoundsTestEnable = VK_FALSE;
+	depthStencilCreateInfo.minDepthBounds		   = 0.0f; // Optional
+	depthStencilCreateInfo.maxDepthBounds		   = 1.0f; // Optional
+	depthStencilCreateInfo.stencilTestEnable	   = VK_FALSE;
+	depthStencilCreateInfo.front				   = {}; // Optional
+	depthStencilCreateInfo.back				   = {}; // Optional
+
 	VkPipelineLayoutCreateInfo pipelineCreateInfo{};
 	pipelineCreateInfo.sType				  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineCreateInfo.setLayoutCount		  = 1;
@@ -289,7 +318,7 @@ void Pipeline::setup(const VkExtent2D &extent) {
 	graphicsPipelineCreateInfo.pViewportState	   = &viewportCreateInfo;
 	graphicsPipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
 	graphicsPipelineCreateInfo.pMultisampleState   = &multisampleCreateInfo;
-	graphicsPipelineCreateInfo.pDepthStencilState  = nullptr;
+	graphicsPipelineCreateInfo.pDepthStencilState  = &depthStencilCreateInfo;
 	graphicsPipelineCreateInfo.pColorBlendState	   = &colorBlendingCreateInfo;
 	graphicsPipelineCreateInfo.pDynamicState	   = &dynamicStateCreateInfo;
 	graphicsPipelineCreateInfo.layout			   = layout;

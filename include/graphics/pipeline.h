@@ -34,7 +34,7 @@ public:
 	[[nodiscard]] auto errors() const -> std::string;
 
 	void			   setup_shader_modules();
-	void			   setup_render_pass(const VkFormat &format);
+	void			   setup_render_pass(const VkFormat &format, const VkFormat &depthFormat);
 	void			   create_descriptor_set_layout();
 	void			   setup(const VkExtent2D &extent);
 

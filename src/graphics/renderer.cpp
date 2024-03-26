@@ -1,4 +1,5 @@
 #define GLFW_INCLUDE_VULKAN
+#define MATH_FORCE_DEPTH_ZERO_TO_ONE
 
 #include "graphics/renderer.h"
 

@@ -12,32 +12,31 @@
 
 #define STR(x) #x
 
+
 namespace graphics {
+
+static VertexData create_data(const maths::Vec3 &pos, const maths::Vec3 &col, const maths::Vec2 &tex) {
+	return VertexData{pos, col, tex};
+}
 
 VulkanInstance::VulkanInstance() {
 	_vertices = {
-		VertexData{
-				   .position = maths::Vec2{-0.5f, -0.5f},
-				   .color	  = maths::Vec3{1.0f, 0.0f, 0.0f},
-				   .tex	  = maths::Vec2{1.0f, 0.0f},
-				   },
-		VertexData{
-				   .position = maths::Vec2{0.5f, -0.5f},
-				   .color	  = maths::Vec3{0.0f, 1.0f, 0.0f},
-				   .tex	  = maths::Vec2{0.0f, 0.0f},
-				   },
-		VertexData{
-				   .position = maths::Vec2{0.5f, 0.5f},
-				   .color	  = maths::Vec3{0.0f, 0.0f, 1.0f},
-				   .tex	  = maths::Vec2{0.0f, 1.0f},
-				   },
-		VertexData{
-				   .position = maths::Vec2{-0.5f, 0.5f},
-				   .color	  = maths::Vec3{1.0f, 1.0f, 1.0f},
-				   .tex	  = maths::Vec2{1.0f, 1.0f},
-				   },
+		create_data(maths::Vec3{-0.5f, -0.5f, 0.0f}, maths::Vec3{1.0f, 0.0f, 0.0f}, maths::Vec2{1.0f, 0.0f}),
+		create_data(maths::Vec3{0.5f, -0.5f, 0.0f}, maths::Vec3{0.0f, 1.0f, 0.0f}, maths::Vec2{0.0f, 0.0f}),
+		create_data(maths::Vec3{0.5f, 0.5f, 0.0f}, maths::Vec3{0.0f, 0.0f, 1.0f}, maths::Vec2{0.0f, 1.0f}),
+		create_data(maths::Vec3{-0.5f, 0.5f, 0.0f}, maths::Vec3{1.0f, 1.0f, 1.0f}, maths::Vec2{1.0f, 1.0f}),
+
+		create_data(maths::Vec3{-0.5f, -0.5f, -0.5f}, maths::Vec3{1.0f, 0.0f, 0.0f}, maths::Vec2{1.0f, 0.0f}),
+		create_data(maths::Vec3{0.5f, -0.5f, -0.5f}, maths::Vec3{0.0f, 1.0f, 0.0f}, maths::Vec2{0.0f, 0.0f}),
+		create_data(maths::Vec3{0.5f, 0.5f, -0.5f}, maths::Vec3{0.0f, 0.0f, 1.0f}, maths::Vec2{0.0f, 1.0f}),
+		create_data(maths::Vec3{-0.5f, 0.5f, -0.5f}, maths::Vec3{1.0f, 1.0f, 1.0f}, maths::Vec2{1.0f, 1.0f}),
 	};
-	_indices = {0, 1, 2, 2, 3, 0};
+	_indices = {
+		// clang-format off
+		0, 1, 2, 2, 3, 0,
+		4, 5, 6, 6, 7, 4,
+		// clang-format on
+	};
 
 	create_instance();
 	create_debug_messenger();
@@ -260,6 +259,10 @@ void VulkanInstance::create_swapchain(const VkPhysicalDevice physical) {
 }
 
 void VulkanInstance::cleanup_swapchain() {
+	vkDestroyImageView(_device, _depthImgView, nullptr);
+	vkDestroyImage(_device, _depthImg, nullptr);
+	vkFreeMemory(_device, _depthImgMemory, nullptr);
+
 	for (const auto &framebuffer : _framebuffers) {
 		vkDestroyFramebuffer(_device, framebuffer, nullptr);
 	}
@@ -292,6 +295,7 @@ void VulkanInstance::recreate_swapchain(const VkPhysicalDevice physical) {
 
 	create_swapchain(physical);
 	create_image_views();
+	create_depth_img(physical);
 	create_framebuffers();
 }
 
@@ -300,7 +304,7 @@ void VulkanInstance::create_image_views() {
 	_swapchainImageViews.resize(_swapchainImages.size());
 
 	for (size_t i = 0; i < _swapchainImageViews.size(); i++) {
-		const auto ret = createImageView(_swapchainImages[i], _swapchainFormat);
+		const auto ret = createImageView(_swapchainImages[i], _swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
 		if (!ret) {
 			throw std::runtime_error("couldn't create image view");
@@ -311,7 +315,7 @@ void VulkanInstance::create_image_views() {
 	}
 }
 
-void VulkanInstance::create_pipeline(std::string vertex_shader, std::string fragment_shader) {
+void VulkanInstance::create_pipeline(const VkPhysicalDevice &physical, std::string vertex_shader, std::string fragment_shader) {
 	_pipeline = std::make_unique<Pipeline>(_device, std::move(vertex_shader), std::move(fragment_shader));
 
 	if (!_pipeline->compile_shaders()) {
@@ -321,7 +325,7 @@ void VulkanInstance::create_pipeline(std::string vertex_shader, std::string frag
 	}
 	_pipeline->setup_shader_modules();
 
-	_pipeline->setup_render_pass(_swapchainFormat);
+	_pipeline->setup_render_pass(_swapchainFormat, find_depth_format(physical));
 	_pipeline->create_descriptor_set_layout();
 	_pipeline->setup(_swapchainExtent);
 }
@@ -330,7 +334,7 @@ void VulkanInstance::create_framebuffers() {
 	_framebuffers.resize(_swapchainImageViews.size());
 
 	for (size_t i = 0; i < _framebuffers.size(); i++) {
-		std::array				attachments = {_swapchainImageViews[i]};
+		std::array				attachments = {_swapchainImageViews[i], _depthImgView};
 
 		VkFramebufferCreateInfo createInfo{};
 		createInfo.sType		   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -497,15 +501,18 @@ void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer,
 		throw std::runtime_error("couldn't begin command buffer");
 	}
 
-	constexpr VkClearValue clearValue{.color = {.float32 = {0.0F, 0.0F, 0.0F, 1.0F}}};
-	VkRenderPassBeginInfo  renderPassInfo{};
+	constexpr std::array clearValues{
+		VkClearValue{.color = {.float32 = {0.0F, 0.0F, 0.0F, 1.0F}}},
+		VkClearValue{.depthStencil = {1.0f, 0}},
+	};
+	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType			 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassInfo.renderPass		 = _pipeline->renderPass;
 	renderPassInfo.framebuffer		 = _framebuffers[image_idx];
 	renderPassInfo.renderArea.offset = {0, 0};
 	renderPassInfo.renderArea.extent = _swapchainExtent;
-	renderPassInfo.clearValueCount	 = 1;
-	renderPassInfo.pClearValues		 = &clearValue;
+	renderPassInfo.clearValueCount	 = clearValues.size();
+	renderPassInfo.pClearValues		 = clearValues.data();
 
 	vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->pipeline);
@@ -625,6 +632,26 @@ void VulkanInstance::create_index_buffer(const VkPhysicalDevice &physical) {
 	vkFreeMemory(_device, stagingMemory, nullptr);
 }
 
+void VulkanInstance::create_depth_img(const VkPhysicalDevice &physical) {
+	const VkFormat					format		= find_depth_format(physical);
+	constexpr VkImageTiling			tiling		= VK_IMAGE_TILING_OPTIMAL;
+	constexpr VkImageUsageFlags		usage		= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	constexpr VkMemoryPropertyFlags props		= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	constexpr VkImageAspectFlags	aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+	std::tie(_depthImg, _depthImgMemory)		= createImage(physical, _swapchainExtent.width, _swapchainExtent.height, format, tiling, usage, props);
+	const auto ret								= createImageView(_depthImg, format, aspectFlags);
+	if (!ret) {
+		throw std::runtime_error("couldn't create image view for depth image");
+	}
+	std::cerr << "Created successfully image view for depth image" << std::endl;
+
+	_depthImgView = *ret;
+
+	transition_image_layout(_depthImg, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+}
+
+
 void VulkanInstance::create_texture_object(const VkPhysicalDevice &physical, std::string path) {
 	_tex = resources::Texture::load(std::move(path));
 
@@ -663,7 +690,7 @@ void VulkanInstance::create_texture_object(const VkPhysicalDevice &physical, std
 }
 
 void VulkanInstance::create_tex_img_view() {
-	const auto ret = createImageView(_texImg, VK_FORMAT_R8G8B8A8_SRGB);
+	const auto ret = createImageView(_texImg, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 	if (!ret) {
 		throw std::runtime_error("couldn't create image view for main texture");
 	}
@@ -788,13 +815,13 @@ std::pair<VkImage, VkDeviceMemory> VulkanInstance::createImage(const VkPhysicalD
 	return {img, imgMem};
 }
 
-std::optional<VkImageView> VulkanInstance::createImageView(const VkImage image, const VkFormat format) const {
+std::optional<VkImageView> VulkanInstance::createImageView(const VkImage image, const VkFormat format, const VkImageAspectFlags &aspectFlags) const {
 	VkImageViewCreateInfo createInfo{};
 	createInfo.sType						   = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	createInfo.image						   = image;
 	createInfo.viewType						   = VK_IMAGE_VIEW_TYPE_2D;
 	createInfo.format						   = format;
-	createInfo.subresourceRange.aspectMask	   = VK_IMAGE_ASPECT_COLOR_BIT;
+	createInfo.subresourceRange.aspectMask	   = aspectFlags;
 	createInfo.subresourceRange.baseMipLevel   = 0;
 	createInfo.subresourceRange.levelCount	   = 1;
 	createInfo.subresourceRange.baseArrayLayer = 0;
@@ -883,6 +910,14 @@ void VulkanInstance::transition_image_layout(VkImage image, VkFormat format, con
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount		= 1;
 
+	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+		if (has_stencil_component(format)) {
+			barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+	}
+
 	VkPipelineStageFlagBits srcStage;
 	decltype(srcStage)		dstStage;
 
@@ -898,6 +933,12 @@ void VulkanInstance::transition_image_layout(VkImage image, VkFormat format, con
 
 		srcStage			  = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dstStage			  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	} else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		srcStage			  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dstStage			  = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	} else {
 		throw std::invalid_argument("unsupported layout transition");
 	}
@@ -936,6 +977,34 @@ void VulkanInstance::copy_buffer_to_image(const VkBuffer buffer, const VkImage i
 	vkCmdCopyBufferToImage(cmdBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 	endSingleTimeCommand(cmdBuffer);
+}
+
+VkFormat VulkanInstance::find_depth_format(const VkPhysicalDevice &physical) {
+	// clang-format off
+	return find_supported_format(
+		physical,
+		{VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+	);
+	// clang-format on
+}
+
+
+VkFormat VulkanInstance::find_supported_format(const VkPhysicalDevice &physical, const std::vector<VkFormat> &candidates, const VkImageTiling &tiling,
+											   const VkFormatFeatureFlags &features) {
+	for (const auto &format : candidates) {
+		VkFormatProperties props;
+		vkGetPhysicalDeviceFormatProperties(physical, format, &props);
+
+		if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+			return format;
+		} else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+			return format;
+		}
+	}
+
+	throw std::runtime_error("couldn't find appropriate format for given parameters");
 }
 
 

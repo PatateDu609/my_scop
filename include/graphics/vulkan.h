@@ -37,7 +37,7 @@ public:
 	void										create_device(VkPhysicalDevice device);
 	void										create_swapchain(VkPhysicalDevice physical);
 	void										create_image_views();
-	void										create_pipeline(std::string vertex_shader, std::string fragment_shader);
+	void										create_pipeline(const VkPhysicalDevice &physical, std::string vertex_shader, std::string fragment_shader);
 	void										create_framebuffers();
 	void										create_command_pool(const VkPhysicalDevice &physical);
 	void										create_short_lived_command_pool(const VkPhysicalDevice &physical);
@@ -52,6 +52,7 @@ public:
 	void										create_texture_object(const VkPhysicalDevice &physical, std::string path);
 	void										create_tex_img_view();
 	void										create_tex_sampler(const VkPhysicalDevice &physical);
+	void										create_depth_img(const VkPhysicalDevice &physical);
 
 	void										render(VkPhysicalDevice physical, uint32_t frame_idx) const;
 	void										waitIdle() const;
@@ -65,61 +66,72 @@ private:
 													  VkMemoryPropertyFlags properties) const;
 	std::pair<VkImage, VkDeviceMemory>	createImage(VkPhysicalDevice physical, size_t w, size_t h, VkFormat format, VkImageTiling tiling,
 													VkImageUsageFlags usage, VkMemoryPropertyFlags props) const;
-	std::optional<VkImageView>			createImageView(VkImage image, VkFormat format) const;
+	std::optional<VkImageView>			createImageView(VkImage image, VkFormat format, const VkImageAspectFlags &aspectFlags) const;
 
-	static uint32_t						find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
-	VkCommandBuffer						beginSingleTimeCommand() const;
-	void								endSingleTimeCommand(VkCommandBuffer cmdBuffer) const;
+	static VkFormat						find_depth_format(const VkPhysicalDevice &physical);
+	constexpr static bool				has_stencil_component(const VkFormat format) {
+		  return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+	}
 
-	void								copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
-	void								transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) const;
-	void								copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
+	static VkFormat				 find_supported_format(const VkPhysicalDevice &physical, const std::vector<VkFormat> &candidates, const VkImageTiling &tiling,
+													   const VkFormatFeatureFlags &features);
+	static uint32_t				 find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
+	VkCommandBuffer				 beginSingleTimeCommand() const;
+	void						 endSingleTimeCommand(VkCommandBuffer cmdBuffer) const;
 
-	VkInstance							_instance{};
-	VkDebugUtilsMessengerEXT			_debugMessenger{};
-	std::shared_ptr<Renderer>			_renderer;
+	void						 copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
+	void						 transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) const;
+	void						 copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
 
-	VkSwapchainKHR						_swapchain{};
-	std::vector<VkImage>				_swapchainImages;
-	std::vector<VkImageView>			_swapchainImageViews;
-	VkExtent2D							_swapchainExtent{};
-	VkFormat							_swapchainFormat{};
+	VkInstance					 _instance{};
+	VkDebugUtilsMessengerEXT	 _debugMessenger{};
+	std::shared_ptr<Renderer>	 _renderer;
 
-	std::unique_ptr<Pipeline>			_pipeline{nullptr};
-	std::vector<VkFramebuffer>			_framebuffers;
-	bool								_framebufferResized{false};
+	VkSwapchainKHR				 _swapchain{};
+	std::vector<VkImage>		 _swapchainImages;
+	std::vector<VkImageView>	 _swapchainImageViews;
+	VkExtent2D					 _swapchainExtent{};
+	VkFormat					 _swapchainFormat{};
 
-	VkCommandPool						_commandPool{};
-	std::vector<VkCommandBuffer>		_commandBuffers;
+	std::unique_ptr<Pipeline>	 _pipeline{nullptr};
+	std::vector<VkFramebuffer>	 _framebuffers;
+	bool						 _framebufferResized{false};
 
-	VkCommandPool						_shortLivedCommandPool{};
+	VkCommandPool				 _commandPool{};
+	std::vector<VkCommandBuffer> _commandBuffers;
 
-	std::vector<VkSemaphore>			_imageAvailableSemaphores;
-	std::vector<VkSemaphore>			_renderFinishedSemaphores;
-	std::vector<VkFence>				_inFlightFences;
+	VkCommandPool				 _shortLivedCommandPool{};
 
-	VkDescriptorPool					_descriptorPool{};
-	std::vector<VkDescriptorSet>		_descriptorSets;
-	std::vector<VkBuffer>				_uniformBuffers;
-	std::vector<VkDeviceMemory>			_uniformBuffersMemory;
-	std::vector<void *>					_uniformBuffersMapped;
+	std::vector<VkSemaphore>	 _imageAvailableSemaphores;
+	std::vector<VkSemaphore>	 _renderFinishedSemaphores;
+	std::vector<VkFence>		 _inFlightFences;
 
-	VkDevice							_device{};
+	VkDescriptorPool			 _descriptorPool{};
+	std::vector<VkDescriptorSet> _descriptorSets;
+	std::vector<VkBuffer>		 _uniformBuffers;
+	std::vector<VkDeviceMemory>	 _uniformBuffersMemory;
+	std::vector<void *>			 _uniformBuffersMapped;
 
-	std::vector<VertexData>				_vertices{};
-	VkBuffer							_vertexBuffer{};
-	VkDeviceMemory						_vertexBufferMemory{};
+	VkDevice					 _device{};
 
-	std::vector<uint16_t>				_indices;
-	VkBuffer							_indexBuffer{};
-	VkDeviceMemory						_indexBufferMemory{};
+	std::vector<VertexData>		 _vertices{};
+	VkBuffer					 _vertexBuffer{};
+	VkDeviceMemory				 _vertexBufferMemory{};
 
-	resources::Texture					_tex{};
-	VkImage								_texImg{};
-	VkImageView							_texImgView{};
-	VkDeviceMemory						_texImgMemory{};
+	std::vector<uint16_t>		 _indices;
+	VkBuffer					 _indexBuffer{};
+	VkDeviceMemory				 _indexBufferMemory{};
 
-	VkSampler							_sampler{};
+	resources::Texture			 _tex{};
+	VkImage						 _texImg{};
+	VkImageView					 _texImgView{};
+	VkDeviceMemory				 _texImgMemory{};
+
+	VkSampler					 _sampler{};
+
+	VkImage						 _depthImg{};
+	VkImageView					 _depthImgView{};
+	VkDeviceMemory				 _depthImgMemory{};
 
 	friend class Renderer;
 };

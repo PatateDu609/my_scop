@@ -52,10 +52,11 @@ void Application::init() {
 	_instance->create_device(_physicalDevice);
 	_instance->create_swapchain(_physicalDevice);
 	_instance->create_image_views();
-	_instance->create_pipeline("shaders/vertex.glsl", "shaders/frag.glsl");
-	_instance->create_framebuffers();
+	_instance->create_pipeline(_physicalDevice, "shaders/vertex.glsl", "shaders/frag.glsl");
 	_instance->create_command_pool(_physicalDevice);
 	_instance->create_short_lived_command_pool(_physicalDevice);
+	_instance->create_depth_img(_physicalDevice);
+	_instance->create_framebuffers();
 	_instance->create_texture_object(_physicalDevice, "resources/textures/texture.jpg");
 	_instance->create_tex_img_view();
 	_instance->create_tex_sampler(_physicalDevice);

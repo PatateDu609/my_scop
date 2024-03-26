@@ -16,7 +16,7 @@ bool								   check_validation_layer_support();
 bool								   check_device_extension_support(VkPhysicalDevice physicalDevice);
 
 struct VertexData {
-	maths::Vec2												position;
+	maths::Vec3												position;
 	maths::Vec3												color;
 	maths::Vec2												tex;
 
