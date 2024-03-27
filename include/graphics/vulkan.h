@@ -66,26 +66,27 @@ private:
 
 	std::pair<VkBuffer, VkDeviceMemory> create_buffer(const VkPhysicalDevice &physical, VkDeviceSize size, VkBufferUsageFlags usage,
 													  VkMemoryPropertyFlags properties) const;
-	std::pair<VkImage, VkDeviceMemory>	createImage(VkPhysicalDevice physical, size_t w, size_t h, VkFormat format, VkImageTiling tiling,
-													VkImageUsageFlags usage, VkMemoryPropertyFlags props) const;
-	std::optional<VkImageView>			createImageView(VkImage image, VkFormat format, const VkImageAspectFlags &aspectFlags) const;
+	std::pair<VkImage, VkDeviceMemory>	create_image(VkPhysicalDevice physical, size_t w, size_t h, uint32_t mipLevels, VkFormat format, VkImageTiling tiling,
+													 VkImageUsageFlags usage, VkMemoryPropertyFlags props) const;
+	std::optional<VkImageView>			create_image_view(VkImage image, VkFormat format, const VkImageAspectFlags &aspectFlags, uint32_t mipLevels) const;
 
 	static VkFormat						find_depth_format(const VkPhysicalDevice &physical);
 	constexpr static bool				has_stencil_component(const VkFormat format) {
 		  return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 
-	static VkFormat				 find_supported_format(const VkPhysicalDevice &physical, const std::vector<VkFormat> &candidates, const VkImageTiling &tiling,
-													   const VkFormatFeatureFlags &features);
-	static uint32_t				 find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
-	VkCommandBuffer				 beginSingleTimeCommand() const;
-	void						 endSingleTimeCommand(VkCommandBuffer cmdBuffer) const;
+	static VkFormat find_supported_format(const VkPhysicalDevice &physical, const std::vector<VkFormat> &candidates, const VkImageTiling &tiling,
+										  const VkFormatFeatureFlags &features);
+	static uint32_t find_memory_type(const VkPhysicalDevice &physical, uint32_t type_filter, VkMemoryPropertyFlags properties);
+	VkCommandBuffer begin_single_time_command() const;
+	void			end_single_time_command(VkCommandBuffer cmdBuffer) const;
 
-	void						 copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
-	void						 transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) const;
-	void						 copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
+	void			copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
+	void			transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const;
+	void			copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
+	void			generate_mip_maps(const VkPhysicalDevice &physical, const VkImage &img, const VkFormat &format, size_t w, size_t h, uint32_t mipLevels) const;
 
-	VkInstance					 _instance{};
+	VkInstance		_instance{};
 	VkDebugUtilsMessengerEXT	 _debugMessenger{};
 	std::shared_ptr<Renderer>	 _renderer;
 
@@ -125,6 +126,7 @@ private:
 	VkDeviceMemory				 _indexBufferMemory{};
 
 	resources::Texture			 _tex{};
+	uint32_t					 _mipLevels{};
 	VkImage						 _texImg{};
 	VkImageView					 _texImgView{};
 	VkDeviceMemory				 _texImgMemory{};

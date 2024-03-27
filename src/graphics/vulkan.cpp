@@ -101,8 +101,8 @@ void VulkanInstance::create_instance() {
 		createInfo.enabledLayerCount   = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
-		auto debugCreateInfo		   = debug::get_debug_messenger_create_info();
-		createInfo.pNext			   = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
+		const auto debugCreateInfo	   = debug::get_debug_messenger_create_info();
+		createInfo.pNext			   = &debugCreateInfo;
 	}
 
 	if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS)
@@ -285,7 +285,7 @@ void VulkanInstance::create_image_views() {
 	_swapchainImageViews.resize(_swapchainImages.size());
 
 	for (size_t i = 0; i < _swapchainImageViews.size(); i++) {
-		const auto ret = createImageView(_swapchainImages[i], _swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		const auto ret = create_image_view(_swapchainImages[i], _swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
 		if (!ret) {
 			throw std::runtime_error("couldn't create image view");
@@ -620,8 +620,8 @@ void VulkanInstance::create_depth_img(const VkPhysicalDevice &physical) {
 	constexpr VkMemoryPropertyFlags props		= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 	constexpr VkImageAspectFlags	aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-	std::tie(_depthImg, _depthImgMemory)		= createImage(physical, _swapchainExtent.width, _swapchainExtent.height, format, tiling, usage, props);
-	const auto ret								= createImageView(_depthImg, format, aspectFlags);
+	std::tie(_depthImg, _depthImgMemory)		= create_image(physical, _swapchainExtent.width, _swapchainExtent.height, 1, format, tiling, usage, props);
+	const auto ret								= create_image_view(_depthImg, format, aspectFlags, 1);
 	if (!ret) {
 		throw std::runtime_error("couldn't create image view for depth image");
 	}
@@ -629,7 +629,7 @@ void VulkanInstance::create_depth_img(const VkPhysicalDevice &physical) {
 
 	_depthImgView = *ret;
 
-	transition_image_layout(_depthImg, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	transition_image_layout(_depthImg, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
 
 
@@ -639,6 +639,7 @@ void VulkanInstance::create_texture_object(const VkPhysicalDevice &physical, std
 	if (!_tex) {
 		throw std::runtime_error("couldn't load image from file");
 	}
+	_mipLevels								   = static_cast<uint32_t>(std::floorf(std::log2f(std::max(_tex.w, _tex.h)))) + 1;
 
 	const VkDeviceSize				deviceSize = _tex.device_size();
 
@@ -653,25 +654,24 @@ void VulkanInstance::create_texture_object(const VkPhysicalDevice &physical, std
 
 	constexpr VkFormat				format	   = VK_FORMAT_R8G8B8A8_SRGB;
 	constexpr VkImageTiling			tiling	   = VK_IMAGE_TILING_OPTIMAL;
-	constexpr VkImageUsageFlags		imgUsage   = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	constexpr VkImageUsageFlags		imgUsage   = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	constexpr VkMemoryPropertyFlags props	   = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	std::tie(_texImg, _texImgMemory)		   = createImage(physical, _tex.w, _tex.h, format, tiling, imgUsage, props);
+	std::tie(_texImg, _texImgMemory)		   = create_image(physical, _tex.w, _tex.h, _mipLevels, format, tiling, imgUsage, props);
 
 	constexpr VkImageLayout oldLayout		   = VK_IMAGE_LAYOUT_UNDEFINED;
 	constexpr VkImageLayout transitionalLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	constexpr VkImageLayout finalLayout		   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	transition_image_layout(_texImg, format, oldLayout, transitionalLayout);
+	transition_image_layout(_texImg, format, oldLayout, transitionalLayout, _mipLevels);
 	copy_buffer_to_image(stagingBuffer, _texImg, _tex.w, _tex.h);
-	transition_image_layout(_texImg, format, transitionalLayout, finalLayout);
+	generate_mip_maps(physical, _texImg, format, _tex.w, _tex.h, _mipLevels);
 
 	vkDestroyBuffer(_device, stagingBuffer, nullptr);
 	vkFreeMemory(_device, stagingMemory, nullptr);
 }
 
 void VulkanInstance::create_tex_img_view() {
-	const auto ret = createImageView(_texImg, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+	const auto ret = create_image_view(_texImg, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, _mipLevels);
 	if (!ret) {
 		throw std::runtime_error("couldn't create image view for main texture");
 	}
@@ -699,7 +699,7 @@ void VulkanInstance::create_tex_sampler(const VkPhysicalDevice &physical) {
 	createInfo.mipmapMode			   = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	createInfo.mipLodBias			   = 0.0f;
 	createInfo.minLod				   = 0.0f;
-	createInfo.maxLod				   = 0.0f;
+	createInfo.maxLod				   = static_cast<float>(_mipLevels);
 
 	if (vkCreateSampler(_device, &createInfo, nullptr, &_sampler) != VK_SUCCESS) {
 		throw std::runtime_error("couldn't create texture sampler");
@@ -751,9 +751,9 @@ std::pair<VkBuffer, VkDeviceMemory> VulkanInstance::create_buffer(const VkPhysic
 	return {buffer, mem};
 }
 
-std::pair<VkImage, VkDeviceMemory> VulkanInstance::createImage(const VkPhysicalDevice physical, const size_t w, const size_t h, const VkFormat format,
-															   const VkImageTiling tiling, const VkImageUsageFlags usage,
-															   const VkMemoryPropertyFlags props) const {
+std::pair<VkImage, VkDeviceMemory> VulkanInstance::create_image(const VkPhysicalDevice physical, const size_t w, const size_t h, uint32_t mipLevels,
+																const VkFormat format, const VkImageTiling tiling, const VkImageUsageFlags usage,
+																const VkMemoryPropertyFlags props) const {
 	VkImage			  img;
 	VkDeviceMemory	  imgMem;
 
@@ -763,7 +763,7 @@ std::pair<VkImage, VkDeviceMemory> VulkanInstance::createImage(const VkPhysicalD
 	createInfo.extent.width	 = w;
 	createInfo.extent.height = h;
 	createInfo.extent.depth	 = 1;
-	createInfo.mipLevels	 = 1;
+	createInfo.mipLevels	 = mipLevels;
 	createInfo.arrayLayers	 = 1;
 	createInfo.format		 = format;
 	createInfo.tiling		 = tiling;
@@ -796,7 +796,8 @@ std::pair<VkImage, VkDeviceMemory> VulkanInstance::createImage(const VkPhysicalD
 	return {img, imgMem};
 }
 
-std::optional<VkImageView> VulkanInstance::createImageView(const VkImage image, const VkFormat format, const VkImageAspectFlags &aspectFlags) const {
+std::optional<VkImageView> VulkanInstance::create_image_view(const VkImage image, const VkFormat format, const VkImageAspectFlags &aspectFlags,
+															 const uint32_t mipLevels) const {
 	VkImageViewCreateInfo createInfo{};
 	createInfo.sType						   = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	createInfo.image						   = image;
@@ -804,7 +805,7 @@ std::optional<VkImageView> VulkanInstance::createImageView(const VkImage image, 
 	createInfo.format						   = format;
 	createInfo.subresourceRange.aspectMask	   = aspectFlags;
 	createInfo.subresourceRange.baseMipLevel   = 0;
-	createInfo.subresourceRange.levelCount	   = 1;
+	createInfo.subresourceRange.levelCount	   = mipLevels;
 	createInfo.subresourceRange.baseArrayLayer = 0;
 	createInfo.subresourceRange.layerCount	   = 1;
 
@@ -829,7 +830,7 @@ uint32_t VulkanInstance::find_memory_type(const VkPhysicalDevice &physical, cons
 	throw std::runtime_error("couldn't find suitable memory type");
 }
 
-VkCommandBuffer VulkanInstance::beginSingleTimeCommand() const {
+VkCommandBuffer VulkanInstance::begin_single_time_command() const {
 	VkCommandBuffer				cmdBuffer;
 	VkCommandBufferAllocateInfo allocateInfo{};
 	allocateInfo.sType				= VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -849,7 +850,7 @@ VkCommandBuffer VulkanInstance::beginSingleTimeCommand() const {
 	return cmdBuffer;
 }
 
-void VulkanInstance::endSingleTimeCommand(const VkCommandBuffer cmdBuffer) const {
+void VulkanInstance::end_single_time_command(const VkCommandBuffer cmdBuffer) const {
 	vkEndCommandBuffer(cmdBuffer);
 
 	VkSubmitInfo submitInfo{};
@@ -864,7 +865,7 @@ void VulkanInstance::endSingleTimeCommand(const VkCommandBuffer cmdBuffer) const
 }
 
 void VulkanInstance::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const {
-	const VkCommandBuffer cmdBuffer = beginSingleTimeCommand();
+	const VkCommandBuffer cmdBuffer = begin_single_time_command();
 
 	VkBufferCopy		  cpy{};
 	cpy.size	  = size;
@@ -872,11 +873,12 @@ void VulkanInstance::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) 
 	cpy.dstOffset = 0;
 	vkCmdCopyBuffer(cmdBuffer, src, dst, 1, &cpy);
 
-	endSingleTimeCommand(cmdBuffer);
+	end_single_time_command(cmdBuffer);
 }
 
-void VulkanInstance::transition_image_layout(VkImage image, VkFormat format, const VkImageLayout oldLayout, const VkImageLayout newLayout) const {
-	const VkCommandBuffer cmdBuffer = beginSingleTimeCommand();
+void VulkanInstance::transition_image_layout(const VkImage image, const VkFormat format, const VkImageLayout oldLayout, const VkImageLayout newLayout,
+											 const uint32_t mipLevels) const {
+	const VkCommandBuffer cmdBuffer = begin_single_time_command();
 
 	VkImageMemoryBarrier  barrier{};
 	barrier.sType							= VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -887,7 +889,7 @@ void VulkanInstance::transition_image_layout(VkImage image, VkFormat format, con
 	barrier.image							= image;
 	barrier.subresourceRange.aspectMask		= VK_IMAGE_ASPECT_COLOR_BIT;
 	barrier.subresourceRange.baseMipLevel	= 0;
-	barrier.subresourceRange.levelCount		= 1;
+	barrier.subresourceRange.levelCount		= mipLevels;
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount		= 1;
 
@@ -936,11 +938,11 @@ void VulkanInstance::transition_image_layout(VkImage image, VkFormat format, con
 		1, &barrier);
 	// clang-format on
 
-	endSingleTimeCommand(cmdBuffer);
+	end_single_time_command(cmdBuffer);
 }
 
 void VulkanInstance::copy_buffer_to_image(const VkBuffer buffer, const VkImage image, const uint32_t w, const uint32_t h) const {
-	const VkCommandBuffer cmdBuffer = beginSingleTimeCommand();
+	const VkCommandBuffer cmdBuffer = begin_single_time_command();
 
 	VkBufferImageCopy	  region{};
 	region.bufferOffset					   = 0;
@@ -957,7 +959,7 @@ void VulkanInstance::copy_buffer_to_image(const VkBuffer buffer, const VkImage i
 
 	vkCmdCopyBufferToImage(cmdBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-	endSingleTimeCommand(cmdBuffer);
+	end_single_time_command(cmdBuffer);
 }
 
 VkFormat VulkanInstance::find_depth_format(const VkPhysicalDevice &physical) {
@@ -1024,6 +1026,106 @@ void VulkanInstance::init_geometry() {
 
 	_vertices.shrink_to_fit();
 	_indices.shrink_to_fit();
+}
+
+void VulkanInstance::generate_mip_maps(const VkPhysicalDevice &physical, const VkImage &img, const VkFormat &format, const size_t w, const size_t h,
+									   const uint32_t mipLevels) const {
+	// Check if image format supports linear blitting
+	VkFormatProperties formatProps;
+	vkGetPhysicalDeviceFormatProperties(physical, format, &formatProps);
+	if (!(formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+		throw std::runtime_error("couldn't generate mipmaps for current texture as device doesn't support linear bliting");
+	}
+
+	const VkCommandBuffer cmdBuffer = begin_single_time_command();
+
+	VkImageMemoryBarrier  barrier{};
+	barrier.sType							= VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.image							= img;
+	barrier.srcQueueFamilyIndex				= VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex				= VK_QUEUE_FAMILY_IGNORED;
+	barrier.subresourceRange.aspectMask		= VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount		= 1;
+	barrier.subresourceRange.levelCount		= 1;
+
+	int32_t mipWidth						= w;
+	int32_t mipHeight						= h;
+
+	for (size_t i = 1; i < mipLevels; i++) {
+		barrier.subresourceRange.baseMipLevel = i - 1;
+		barrier.oldLayout					  = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout					  = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.srcAccessMask				  = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask				  = VK_ACCESS_TRANSFER_READ_BIT;
+
+		// clang-format off
+		vkCmdPipelineBarrier(cmdBuffer,
+			VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+		// clang-format on
+
+		VkImageBlit blit{};
+		blit.srcOffsets[0]				   = {0, 0, 0};
+		blit.srcOffsets[1]				   = {mipWidth, mipHeight, 1};
+		blit.srcSubresource.aspectMask	   = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.srcSubresource.mipLevel	   = i - 1;
+		blit.srcSubresource.baseArrayLayer = 0;
+		blit.srcSubresource.layerCount	   = 1;
+		blit.dstOffsets[0]				   = {0, 0, 0};
+		blit.dstOffsets[1]				   = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+		blit.dstSubresource.aspectMask	   = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.dstSubresource.mipLevel	   = i;
+		blit.dstSubresource.baseArrayLayer = 0;
+		blit.dstSubresource.layerCount	   = 1;
+
+		// clang-format off
+		vkCmdBlitImage(cmdBuffer,
+			img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &blit,
+			VK_FILTER_LINEAR);
+		// clang-format on
+
+		barrier.oldLayout				   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.newLayout				   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcAccessMask			   = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier.dstAccessMask			   = VK_ACCESS_SHADER_READ_BIT;
+		// clang-format off
+		vkCmdPipelineBarrier(cmdBuffer,
+			VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+		// clang-format on
+
+		if (mipWidth > 1)
+			mipWidth /= 2;
+		if (mipHeight > 1)
+			mipHeight /= 2;
+	}
+
+	barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+	barrier.oldLayout					  = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.newLayout					  = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.srcAccessMask				  = VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask				  = VK_ACCESS_SHADER_READ_BIT;
+
+
+	// clang-format off
+	vkCmdPipelineBarrier(cmdBuffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+		0, nullptr,
+		0, nullptr,
+		1, &barrier
+	);
+	// clang-format on
+
+	end_single_time_command(cmdBuffer);
 }
 
 
