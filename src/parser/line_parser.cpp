@@ -51,11 +51,11 @@ Face::Indices::Indices(std::string const &arg) {
 		throw std::invalid_argument(
 			"an index argument should have between 1-3 arguments (vertex, vertex texture, vertex normal)");
 
-	vertex = static_cast<uint32_t>(std::stoul(values[0]));
+	vertex = static_cast<uint32_t>(std::stoul(values[0]) - 1);
 	if (values.size() >= 2 && !values[1].empty())
-		texture = static_cast<uint32_t>(std::stoul(values[1]));
+		texture = static_cast<uint32_t>(std::stoul(values[1]) - 1);
 	if (values.size() == 3 && !values[2].empty())
-		normal = static_cast<uint32_t>(std::stoul(values[2]));
+		normal = static_cast<uint32_t>(std::stoul(values[2]) - 1);
 }
 
 

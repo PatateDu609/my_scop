@@ -20,29 +20,36 @@ private:
 };
 
 class File {
-	friend void parse(const std::string &filename);
+	friend void				   parse(const std::string &filename);
 
-public:
-	struct ResolvedFace {
-		struct ResolvedVertex {
-			std::tuple<float, float, float>				   coords;
-			std::optional<std::tuple<float, float>>		   tex;
-			std::optional<std::tuple<float, float, float>> normal;
-		};
-
-		std::vector<ResolvedVertex> vertices{};
-	};
-
-private:
-	void					   resolve();
 	void					   triangulate();
 
 	std::vector<Vertex>		   vertices;
 	std::vector<VertexTexture> texture_coordinates;
 	std::vector<Normal>		   normals;
 	std::vector<Face>		   faces;
+	std::vector<Face>		   triangulated;
 
-	std::vector<ResolvedFace>  resolved;
+public:
+	decltype(triangulated)::const_iterator begin() const {
+		return triangulated.begin();
+	}
+
+	decltype(triangulated)::const_iterator end() const {
+		return triangulated.end();
+	}
+
+	decltype(vertices)::const_reference vertex(const size_t i) const {
+		return vertices[i];
+	}
+
+	decltype(normals)::const_reference normal(const size_t i) const {
+		return normals[i];
+	}
+
+	decltype(texture_coordinates)::const_reference texCoord(const size_t i) const {
+		return texture_coordinates[i];
+	}
 };
 
 extern File file;

@@ -126,7 +126,7 @@ void Renderer::updateUniformBuffer(uint32_t frame_idx) const {
 	const float			ratio		 = _instance->_swapchainExtent.width / static_cast<float>(_instance->_swapchainExtent.height);
 
 	UniformBufferObject ubo{};
-	ubo.model = maths::Mat4::rotate(elapsed * maths::rad(90), maths::Vec3(0, 0, 1));
+	ubo.model = maths::Mat4::rotate(elapsed * maths::rad(30), maths::Vec3(0, 0, 1));
 	ubo.view  = maths::Mat4::lookAt(maths::Vec3(2.0f, 2.0f, 2.0f), maths::Vec3(0.0f, 0.0f, 0.0f), maths::Vec3(0.0f, 0.0f, 1.0f));
 	ubo.proj  = maths::Mat4::perspective(maths::rad(45), ratio, 0.1f, 10.0f);
 

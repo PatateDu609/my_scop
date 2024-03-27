@@ -16,12 +16,20 @@ bool								   check_validation_layer_support();
 bool								   check_device_extension_support(VkPhysicalDevice physicalDevice);
 
 struct VertexData {
-	maths::Vec3												position;
-	maths::Vec3												color;
-	maths::Vec2												tex;
+	bool operator==(const VertexData &rhs) const {
+		return std::tie(position, color, tex) == std::tie(rhs.position, rhs.color, rhs.tex);
+	}
+
+	bool operator!=(const VertexData &rhs) const {
+		return !(*this == rhs);
+	}
 
 	static VkVertexInputBindingDescription					getBindingDesc();
 	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescs();
+
+	maths::Vec3												position;
+	maths::Vec3												color;
+	maths::Vec2												tex;
 };
 
 struct UniformBufferObject {
@@ -31,5 +39,12 @@ struct UniformBufferObject {
 };
 
 } // namespace graphics
+
+template <>
+struct std::hash<graphics::VertexData> {
+	std::size_t operator()(const graphics::VertexData &vertex_data) const noexcept {
+		return std::hash<maths::Vec3>{}(vertex_data.position) ^ std::hash<maths::Vec3>{}(vertex_data.color) ^ std::hash<maths::Vec2>{}(vertex_data.tex);
+	}
+};
 
 #endif // SCOP_UTILS_H

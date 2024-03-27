@@ -62,6 +62,8 @@ public:
 	void										recreate_swapchain(VkPhysicalDevice physical);
 
 private:
+	void								init_geometry();
+
 	std::pair<VkBuffer, VkDeviceMemory> create_buffer(const VkPhysicalDevice &physical, VkDeviceSize size, VkBufferUsageFlags usage,
 													  VkMemoryPropertyFlags properties) const;
 	std::pair<VkImage, VkDeviceMemory>	createImage(VkPhysicalDevice physical, size_t w, size_t h, VkFormat format, VkImageTiling tiling,
@@ -118,7 +120,7 @@ private:
 	VkBuffer					 _vertexBuffer{};
 	VkDeviceMemory				 _vertexBufferMemory{};
 
-	std::vector<uint16_t>		 _indices;
+	std::vector<uint32_t>		 _indices;
 	VkBuffer					 _indexBuffer{};
 	VkDeviceMemory				 _indexBufferMemory{};
 

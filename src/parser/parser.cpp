@@ -3,11 +3,12 @@
 #include "parser/utils.h"
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 parser::File parser::file;
 
-void		 parser::parse(std::string const &filename) {
+void		 parser::parse(const std::string &filename) {
 	std::ifstream ifs(filename);
 
 	if (!ifs)
@@ -37,60 +38,46 @@ void		 parser::parse(std::string const &filename) {
 	file.vertices.shrink_to_fit();
 	file.texture_coordinates.shrink_to_fit();
 
-	file.resolve();
 	file.triangulate();
 }
 
-void parser::File::resolve() {
-	resolved.clear();
-	resolved.reserve(faces.size());
-
-	for (auto const &raw : faces) {
-		ResolvedFace cur{};
-
-		for (auto const &[vertex_idx, tex_idx, normal_idx] : raw.vertices) {
-			ResolvedFace::ResolvedVertex resolvedVertex;
-			auto const &[x, y, z] = vertices.at(vertex_idx - 1);
-			resolvedVertex.coords = std::make_tuple(x, y, z);
-
-			if (tex_idx) {
-				auto const &[tu, tv] = texture_coordinates.at(tex_idx.value() - 1);
-				resolvedVertex.tex	 = std::make_tuple(tu, tv);
-			}
-
-			if (normal_idx) {
-				auto const &[ni, nj, nk] = normals.at(normal_idx.value() - 1);
-				resolvedVertex.normal	 = std::make_tuple(ni, nj, nk);
-			}
-
-			cur.vertices.push_back(resolvedVertex);
-		}
-
-		cur.vertices.shrink_to_fit();
-		resolved.push_back(cur);
-	}
-}
-
 void parser::File::triangulate() {
-	using ResolvedVertex = ResolvedFace::ResolvedVertex;
-	std::vector<ResolvedFace> triangulated{};
+	std::vector<Face> triangulated{};
 
-	auto					  triangle = [](ResolvedVertex const &a, ResolvedVertex const &b, ResolvedVertex const &c) {
-		 ResolvedFace triangle;
+	auto			  printFace = [](const std::string &title, const std::vector<Face> &faces) {
+		 std::cout << title << ":\n";
 
-		 triangle.vertices.push_back(a);
-		 triangle.vertices.push_back(b);
-		 triangle.vertices.push_back(c);
+		 for (const auto &face : faces) {
+			 std::cout << "\t-";
 
-		 return triangle;
+			 for (const auto &v : face.vertices) {
+				 std::cout << " " << v.vertex + 1;
+			 }
+			 std::cout << "\n";
+		 }
+
+		 std::cout << std::flush;
 	};
 
-	triangulated.reserve(resolved.size() * 2);
-	for (auto const &face : resolved) {
+	auto triangle = [](const Face::Indices &a, const Face::Indices &b, const Face::Indices &c) {
+		Face triangleFace{};
+
+		triangleFace.vertices.push_back(b);
+		triangleFace.vertices.push_back(c);
+		triangleFace.vertices.push_back(a);
+
+		return triangleFace;
+	};
+
+	printFace("Faces before triangulation:", faces);
+
+	triangulated.reserve(faces.size() * 2);
+	for (const auto &face : faces) {
 		if (face.vertices.size() == 3) {
 			triangulated.push_back(face);
 			continue;
-		} else if (face.vertices.size() != 4) {
+		}
+		if (face.vertices.size() != 4) {
 			std::ostringstream oss;
 
 			if (face.vertices.size() == 1)
@@ -118,5 +105,9 @@ void parser::File::triangulate() {
 	}
 
 	triangulated.shrink_to_fit();
-	resolved.swap(triangulated);
+	this->triangulated.swap(triangulated);
+
+	if constexpr (DEBUG) {
+		printFace("Faces after triangulation", this->triangulated);
+	}
 }

@@ -5,39 +5,17 @@
 #include "graphics/queue_families.h"
 #include "graphics/swap_chain.h"
 #include "graphics/utils.h"
+#include "parser/parser.h"
 
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-
-#define STR(x) #x
-
+#include <unordered_map>
 
 namespace graphics {
 
-static VertexData create_data(const maths::Vec3 &pos, const maths::Vec3 &col, const maths::Vec2 &tex) {
-	return VertexData{pos, col, tex};
-}
-
 VulkanInstance::VulkanInstance() {
-	_vertices = {
-		create_data(maths::Vec3{-0.5f, -0.5f, 0.0f}, maths::Vec3{1.0f, 0.0f, 0.0f}, maths::Vec2{1.0f, 0.0f}),
-		create_data(maths::Vec3{0.5f, -0.5f, 0.0f}, maths::Vec3{0.0f, 1.0f, 0.0f}, maths::Vec2{0.0f, 0.0f}),
-		create_data(maths::Vec3{0.5f, 0.5f, 0.0f}, maths::Vec3{0.0f, 0.0f, 1.0f}, maths::Vec2{0.0f, 1.0f}),
-		create_data(maths::Vec3{-0.5f, 0.5f, 0.0f}, maths::Vec3{1.0f, 1.0f, 1.0f}, maths::Vec2{1.0f, 1.0f}),
-
-		create_data(maths::Vec3{-0.5f, -0.5f, -0.5f}, maths::Vec3{1.0f, 0.0f, 0.0f}, maths::Vec2{1.0f, 0.0f}),
-		create_data(maths::Vec3{0.5f, -0.5f, -0.5f}, maths::Vec3{0.0f, 1.0f, 0.0f}, maths::Vec2{0.0f, 0.0f}),
-		create_data(maths::Vec3{0.5f, 0.5f, -0.5f}, maths::Vec3{0.0f, 0.0f, 1.0f}, maths::Vec2{0.0f, 1.0f}),
-		create_data(maths::Vec3{-0.5f, 0.5f, -0.5f}, maths::Vec3{1.0f, 1.0f, 1.0f}, maths::Vec2{1.0f, 1.0f}),
-	};
-	_indices = {
-		// clang-format off
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4,
-		// clang-format on
-	};
-
+	init_geometry();
 	create_instance();
 	create_debug_messenger();
 }
@@ -45,9 +23,12 @@ VulkanInstance::VulkanInstance() {
 
 VulkanInstance::~VulkanInstance() {
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		vkDestroyFence(_device, _inFlightFences[i], nullptr);
-		vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
-		vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
+		if (i < _inFlightFences.size())
+			vkDestroyFence(_device, _inFlightFences[i], nullptr);
+		if (i < _renderFinishedSemaphores.size())
+			vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
+		if (i < _imageAvailableSemaphores.size())
+			vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
 	}
 
 	vkDestroyCommandPool(_device, _shortLivedCommandPool, nullptr);
@@ -534,7 +515,7 @@ void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer,
 	const std::array								   buffers{_vertexBuffer};
 	constexpr std::array<VkDeviceSize, buffers.size()> offsets{0};
 	vkCmdBindVertexBuffers(command_buffer, 0, buffers.size(), buffers.data(), offsets.data());
-	vkCmdBindIndexBuffer(command_buffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer(command_buffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->layout, 0, 1, &_descriptorSets[frame_idx], 0, nullptr);
 	vkCmdDrawIndexed(command_buffer, _indices.size(), 1, 0, 0, 0);
 
@@ -1005,6 +986,44 @@ VkFormat VulkanInstance::find_supported_format(const VkPhysicalDevice &physical,
 	}
 
 	throw std::runtime_error("couldn't find appropriate format for given parameters");
+}
+
+
+void VulkanInstance::init_geometry() {
+	_vertices.clear();
+	_indices.clear();
+
+	std::unordered_map<VertexData, size_t> index_cache;
+
+	for (const auto &face : parser::file) {
+		for (const auto &vertIndices : face.vertices) {
+			VertexData vertexData;
+			vertexData.color		= maths::Vec3{1.0f, 1.0f, 1.0f};
+
+			const auto vertex		= parser::file.vertex(vertIndices.vertex);
+			vertexData.position.x() = vertex.x;
+			vertexData.position.y() = vertex.y;
+			vertexData.position.z() = vertex.z;
+
+			if (vertIndices.texture) {
+				const auto texture = parser::file.texCoord(*vertIndices.texture);
+				vertexData.tex.x() = texture.u;
+				vertexData.tex.y() = 1.0 - texture.v;
+			}
+
+			if (const auto it = index_cache.find(vertexData); it != index_cache.end()) {
+				_indices.push_back(it->second);
+				continue;
+			}
+
+			index_cache[vertexData] = _vertices.size();
+			_indices.push_back(_vertices.size());
+			_vertices.push_back(vertexData);
+		}
+	}
+
+	_vertices.shrink_to_fit();
+	_indices.shrink_to_fit();
 }
 
 

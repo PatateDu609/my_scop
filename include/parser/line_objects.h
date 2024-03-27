@@ -42,6 +42,7 @@ struct Face {
 		[[nodiscard]] bool		  validate(bool require_texture, bool require_normal) const;
 	};
 
+						 Face() = default;
 	explicit			 Face(const std::vector<std::string> &args);
 
 	std::vector<Indices> vertices;
