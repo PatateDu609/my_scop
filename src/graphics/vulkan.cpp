@@ -114,6 +114,7 @@ void VulkanInstance::create_instance() {
 
 void VulkanInstance::create_debug_messenger() {
 	if constexpr (!ENABLE_VALIDATION_LAYERS)
+		// ReSharper disable once CppDFAUnreachableCode
 		return;
 
 	const auto createInfo = debug::get_debug_messenger_create_info();
@@ -240,6 +241,10 @@ void VulkanInstance::create_swapchain(const VkPhysicalDevice physical) {
 }
 
 void VulkanInstance::cleanup_swapchain() {
+	vkDestroyImageView(_device, _colorImgView, nullptr);
+	vkDestroyImage(_device, _colorImg, nullptr);
+	vkFreeMemory(_device, _colorImgMemory, nullptr);
+
 	vkDestroyImageView(_device, _depthImgView, nullptr);
 	vkDestroyImage(_device, _depthImg, nullptr);
 	vkFreeMemory(_device, _depthImgMemory, nullptr);
@@ -276,6 +281,7 @@ void VulkanInstance::recreate_swapchain(const VkPhysicalDevice physical) {
 
 	create_swapchain(physical);
 	create_image_views();
+	create_color_resources(physical);
 	create_depth_img(physical);
 	create_framebuffers();
 }
@@ -297,7 +303,7 @@ void VulkanInstance::create_image_views() {
 }
 
 void VulkanInstance::create_pipeline(const VkPhysicalDevice &physical, std::string vertex_shader, std::string fragment_shader) {
-	_pipeline = std::make_unique<Pipeline>(_device, std::move(vertex_shader), std::move(fragment_shader));
+	_pipeline = std::make_unique<Pipeline>(_device, std::move(vertex_shader), std::move(fragment_shader), _msaaSamples);
 
 	if (!_pipeline->compile_shaders()) {
 		const auto &[errors, warnings] = _pipeline->get_num_errors();
@@ -315,7 +321,7 @@ void VulkanInstance::create_framebuffers() {
 	_framebuffers.resize(_swapchainImageViews.size());
 
 	for (size_t i = 0; i < _framebuffers.size(); i++) {
-		std::array				attachments = {_swapchainImageViews[i], _depthImgView};
+		std::array				attachments = {_colorImgView, _depthImgView, _swapchainImageViews[i]};
 
 		VkFramebufferCreateInfo createInfo{};
 		createInfo.sType		   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -472,7 +478,7 @@ void VulkanInstance::create_descriptor_sets() {
 }
 
 
-void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer, const uint32_t image_idx, uint32_t frame_idx) const {
+void VulkanInstance::record_command_buffer(const VkCommandBuffer command_buffer, const uint32_t image_idx, const uint32_t frame_idx) const {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType			   = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags			   = 0;
@@ -620,8 +626,9 @@ void VulkanInstance::create_depth_img(const VkPhysicalDevice &physical) {
 	constexpr VkMemoryPropertyFlags props		= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 	constexpr VkImageAspectFlags	aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-	std::tie(_depthImg, _depthImgMemory)		= create_image(physical, _swapchainExtent.width, _swapchainExtent.height, 1, format, tiling, usage, props);
-	const auto ret								= create_image_view(_depthImg, format, aspectFlags, 1);
+	std::tie(_depthImg, _depthImgMemory) =
+		create_image(physical, _swapchainExtent.width, _swapchainExtent.height, 1, _msaaSamples, format, tiling, usage, props);
+	const auto ret = create_image_view(_depthImg, format, aspectFlags, 1);
 	if (!ret) {
 		throw std::runtime_error("couldn't create image view for depth image");
 	}
@@ -657,7 +664,7 @@ void VulkanInstance::create_texture_object(const VkPhysicalDevice &physical, std
 	constexpr VkImageUsageFlags		imgUsage   = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	constexpr VkMemoryPropertyFlags props	   = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	std::tie(_texImg, _texImgMemory)		   = create_image(physical, _tex.w, _tex.h, _mipLevels, format, tiling, imgUsage, props);
+	std::tie(_texImg, _texImgMemory)		   = create_image(physical, _tex.w, _tex.h, _mipLevels, VK_SAMPLE_COUNT_1_BIT, format, tiling, imgUsage, props);
 
 	constexpr VkImageLayout oldLayout		   = VK_IMAGE_LAYOUT_UNDEFINED;
 	constexpr VkImageLayout transitionalLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -707,6 +714,23 @@ void VulkanInstance::create_tex_sampler(const VkPhysicalDevice &physical) {
 	std::cerr << "Created successfully texture sampler" << std::endl;
 }
 
+void VulkanInstance::create_color_resources(const VkPhysicalDevice &physical) {
+	const VkFormat					   format = _swapchainFormat;
+	constexpr VkImageTiling			   tiling = VK_IMAGE_TILING_OPTIMAL;
+	constexpr VkImageUsageFlags		   usage  = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	constexpr VkMemoryPropertyFlagBits props  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	std::tie(_colorImg, _colorImgMemory) =
+		create_image(physical, _swapchainExtent.width, _swapchainExtent.height, 1, _msaaSamples, format, tiling, usage, props);
+	const auto ret = create_image_view(_colorImg, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+	if (!ret) {
+		throw std::runtime_error("couldn't create image view for multi sampled setup");
+	}
+	std::cerr << "Created successfully image view for MSAA use" << std::endl;
+
+	_colorImgView = *ret;
+}
 
 void VulkanInstance::render(const VkPhysicalDevice physical, const uint32_t frame_idx) const {
 	_renderer->render(physical, frame_idx);
@@ -751,9 +775,9 @@ std::pair<VkBuffer, VkDeviceMemory> VulkanInstance::create_buffer(const VkPhysic
 	return {buffer, mem};
 }
 
-std::pair<VkImage, VkDeviceMemory> VulkanInstance::create_image(const VkPhysicalDevice physical, const size_t w, const size_t h, uint32_t mipLevels,
-																const VkFormat format, const VkImageTiling tiling, const VkImageUsageFlags usage,
-																const VkMemoryPropertyFlags props) const {
+std::pair<VkImage, VkDeviceMemory> VulkanInstance::create_image(const VkPhysicalDevice physical, const size_t w, const size_t h, const uint32_t mipLevels,
+																const VkSampleCountFlagBits numSamples, const VkFormat format, const VkImageTiling tiling,
+																const VkImageUsageFlags usage, const VkMemoryPropertyFlags props) const {
 	VkImage			  img;
 	VkDeviceMemory	  imgMem;
 
@@ -770,7 +794,7 @@ std::pair<VkImage, VkDeviceMemory> VulkanInstance::create_image(const VkPhysical
 	createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	createInfo.usage		 = usage;
 	createInfo.sharingMode	 = VK_SHARING_MODE_EXCLUSIVE;
-	createInfo.samples		 = VK_SAMPLE_COUNT_1_BIT;
+	createInfo.samples		 = numSamples;
 	createInfo.flags		 = 0;
 
 	if (vkCreateImage(_device, &createInfo, nullptr, &img) != VK_SUCCESS) {
@@ -864,7 +888,7 @@ void VulkanInstance::end_single_time_command(const VkCommandBuffer cmdBuffer) co
 	vkFreeCommandBuffers(_device, _shortLivedCommandPool, 1, &cmdBuffer);
 }
 
-void VulkanInstance::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const {
+void VulkanInstance::copy_buffer(const VkBuffer src, const VkBuffer dst, const VkDeviceSize size) const {
 	const VkCommandBuffer cmdBuffer = begin_single_time_command();
 
 	VkBufferCopy		  cpy{};
@@ -1127,6 +1151,5 @@ void VulkanInstance::generate_mip_maps(const VkPhysicalDevice &physical, const V
 
 	end_single_time_command(cmdBuffer);
 }
-
 
 } // namespace graphics

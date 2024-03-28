@@ -30,6 +30,10 @@ public:
 		_renderer = std::make_shared<Renderer>(std::forward<Args>(args)...);
 	}
 
+	void set_msaa_samples(const VkSampleCountFlagBits &msaaSamples) {
+		_msaaSamples = msaaSamples;
+	}
+
 	[[nodiscard]] VkSurfaceKHR					get_surface() const;
 
 	[[nodiscard]] std::vector<VkPhysicalDevice> enumerate_physical_devices() const;
@@ -53,6 +57,7 @@ public:
 	void										create_tex_img_view();
 	void										create_tex_sampler(const VkPhysicalDevice &physical);
 	void										create_depth_img(const VkPhysicalDevice &physical);
+	void										create_color_resources(const VkPhysicalDevice &physical);
 
 	void										render(VkPhysicalDevice physical, uint32_t frame_idx) const;
 	void										waitIdle() const;
@@ -66,8 +71,8 @@ private:
 
 	std::pair<VkBuffer, VkDeviceMemory> create_buffer(const VkPhysicalDevice &physical, VkDeviceSize size, VkBufferUsageFlags usage,
 													  VkMemoryPropertyFlags properties) const;
-	std::pair<VkImage, VkDeviceMemory>	create_image(VkPhysicalDevice physical, size_t w, size_t h, uint32_t mipLevels, VkFormat format, VkImageTiling tiling,
-													 VkImageUsageFlags usage, VkMemoryPropertyFlags props) const;
+	std::pair<VkImage, VkDeviceMemory>	create_image(VkPhysicalDevice physical, size_t w, size_t h, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
+													 VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags props) const;
 	std::optional<VkImageView>			create_image_view(VkImage image, VkFormat format, const VkImageAspectFlags &aspectFlags, uint32_t mipLevels) const;
 
 	static VkFormat						find_depth_format(const VkPhysicalDevice &physical);
@@ -84,9 +89,9 @@ private:
 	void			copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
 	void			transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const;
 	void			copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
-	void			generate_mip_maps(const VkPhysicalDevice &physical, const VkImage &img, const VkFormat &format, size_t w, size_t h, uint32_t mipLevels) const;
+	void	   generate_mip_maps(const VkPhysicalDevice &physical, const VkImage &img, const VkFormat &format, size_t w, size_t h, uint32_t mipLevels) const;
 
-	VkInstance		_instance{};
+	VkInstance _instance{};
 	VkDebugUtilsMessengerEXT	 _debugMessenger{};
 	std::shared_ptr<Renderer>	 _renderer;
 
@@ -132,6 +137,11 @@ private:
 	VkDeviceMemory				 _texImgMemory{};
 
 	VkSampler					 _sampler{};
+
+	VkSampleCountFlagBits		 _msaaSamples{VK_SAMPLE_COUNT_1_BIT};
+	VkImage						 _colorImg{};
+	VkImageView					 _colorImgView{};
+	VkDeviceMemory				 _colorImgMemory{};
 
 	VkImage						 _depthImg{};
 	VkImageView					 _depthImgView{};

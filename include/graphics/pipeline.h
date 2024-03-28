@@ -10,7 +10,7 @@ namespace graphics {
 
 class Pipeline {
 public:
-		 Pipeline(VkDevice &device, std::string vertex_path, std::string fragment_path);
+		 Pipeline(VkDevice &device, std::string vertex_path, std::string fragment_path, VkSampleCountFlagBits msaaSamples);
 	~	 Pipeline();
 
 		 Pipeline(Pipeline &&other)				   = default;
@@ -46,6 +46,7 @@ private:
 	VkDescriptorSetLayout						descriptorSetLayout{};
 	VkPipelineLayout							layout{};
 	VkPipeline									pipeline{};
+	VkSampleCountFlagBits					   msaaSamples{VK_SAMPLE_COUNT_1_BIT};
 
 public:
 		 Pipeline()								   = delete;

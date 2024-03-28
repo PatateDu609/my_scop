@@ -72,6 +72,27 @@ bool check_device_extension_support(const VkPhysicalDevice physicalDevice) {
 	return requiredExtensions.empty();
 }
 
+VkSampleCountFlagBits get_max_usable_sample_count(const VkPhysicalDevice &physical) {
+	VkPhysicalDeviceProperties props;
+	vkGetPhysicalDeviceProperties(physical, &props);
+
+	const VkSampleCountFlags counts = props.limits.framebufferColorSampleCounts & props.limits.framebufferDepthSampleCounts;
+	if (counts & VK_SAMPLE_COUNT_64_BIT)
+		return VK_SAMPLE_COUNT_64_BIT;
+	if (counts & VK_SAMPLE_COUNT_32_BIT)
+		return VK_SAMPLE_COUNT_32_BIT;
+	if (counts & VK_SAMPLE_COUNT_16_BIT)
+		return VK_SAMPLE_COUNT_16_BIT;
+	if (counts & VK_SAMPLE_COUNT_8_BIT)
+		return VK_SAMPLE_COUNT_8_BIT;
+	if (counts & VK_SAMPLE_COUNT_4_BIT)
+		return VK_SAMPLE_COUNT_4_BIT;
+	if (counts & VK_SAMPLE_COUNT_2_BIT)
+		return VK_SAMPLE_COUNT_2_BIT;
+
+	return VK_SAMPLE_COUNT_1_BIT;
+}
+
 VkVertexInputBindingDescription VertexData::getBindingDesc() {
 	VkVertexInputBindingDescription res{};
 	res.binding	  = 0;
@@ -94,10 +115,10 @@ std::array<VkVertexInputAttributeDescription, 3> VertexData::getAttributeDescs()
 	attrs[1].format	  = VK_FORMAT_R32G32B32_SFLOAT;
 	attrs[1].offset	  = offsetof(VertexData, color);
 
-	attrs[2].binding = 0;
+	attrs[2].binding  = 0;
 	attrs[2].location = 2;
-	attrs[2].format = VK_FORMAT_R32G32_SFLOAT;
-	attrs[2].offset = offsetof(VertexData, tex);
+	attrs[2].format	  = VK_FORMAT_R32G32_SFLOAT;
+	attrs[2].offset	  = offsetof(VertexData, tex);
 
 	return attrs;
 }

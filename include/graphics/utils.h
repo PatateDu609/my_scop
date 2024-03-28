@@ -14,6 +14,7 @@ extern const std::vector<const char *> DEVICE_EXTENSIONS;
 std::vector<const char *>			   get_required_extensions();
 bool								   check_validation_layer_support();
 bool								   check_device_extension_support(VkPhysicalDevice physicalDevice);
+VkSampleCountFlagBits				   get_max_usable_sample_count(const VkPhysicalDevice &physical);
 
 struct VertexData {
 	bool operator==(const VertexData &rhs) const {
