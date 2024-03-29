@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(scop DESCRIPTION "a small 3D object loader")
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 find_package(Vulkan REQUIRED)
 find_package(

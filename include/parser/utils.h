@@ -5,7 +5,8 @@
 #include <vector>
 
 namespace parser {
-	void split(std::vector<std::string> &args, const std::string &line, const std::string &delimiter = " ");
+	using std::operator ""sv;
+	void split(std::vector<std::string> &args, const std::string_view &line, const std::string_view &delimiter = " "sv);
 }
 
 #endif //SCOP_PARSER_UTILS_H

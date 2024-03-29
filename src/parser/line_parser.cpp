@@ -43,7 +43,7 @@ VertexTexture::VertexTexture(std::vector<std::string> const &args) {
 
 Face::Indices::Indices(std::string const &arg) {
 	std::vector<std::string> values;
-	split(values, arg, "/");
+	split(values, arg, "/"sv);
 
 	if (values.empty() || values[0].empty())
 		throw std::invalid_argument("an index argument should contain at least a vertex reference");

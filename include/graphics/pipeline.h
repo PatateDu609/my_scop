@@ -4,6 +4,7 @@
 #include "graphics/shaders.h"
 
 #include <string>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 namespace graphics {

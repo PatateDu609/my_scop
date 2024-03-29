@@ -17,8 +17,8 @@ void		 parser::parse(const std::string &filename) {
 	file.vertices.clear();
 
 	std::string				 line;
-	std::vector<std::string> args;
 	while (std::getline(ifs, line)) {
+		std::vector<std::string> args;
 		split(args, line);
 		std::string id = args[0];
 		args.erase(args.begin());

@@ -2,6 +2,8 @@
 #define VEC_H
 
 #include <array>
+#include <memory>
+#include <tuple>
 
 namespace maths {
 
